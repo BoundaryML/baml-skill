@@ -18,6 +18,8 @@ client<llm> FastOpenAI {
   }
 }
 
+class Email { id: string, from: string, subject: string, body: string, }
+
 class Intent {
   kind: "billing" | "support" | "sales" | "spam" | "other",
   confidence: float,

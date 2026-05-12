@@ -81,7 +81,7 @@ baml generate                            # regenerate host-language client code
 
 Rules:
 
-- Run `baml describe` instead of inventing stdlib names. Modules (`baml.json`, `baml.fs`) and top-level classes (`String`, `Array`, `Map`) are valid arguments.
+- Run `baml describe` instead of inventing stdlib names. Top-level classes (`Array`, `Map`, `Int`, `Float`, `Bool`) are valid arguments. Module dotted paths (`baml.json`, `baml.fs`) may not resolve in current CLIs — read the source under `baml_std/` if needed.
 - The standard library is basically like TypeScript, but module-level functions use `snake_case`.
 - Keep the entire project compiling — `run -e` still compiles all `.baml` files. Use it as a syntax check.
 - Use `--json-args` for classes, arrays, maps, optionals, unions, and nested input.
@@ -95,7 +95,7 @@ Write **formatted** BAML. The parser may accept looser punctuation, but agents s
 
 ```baml
 type UserId = string;
-type Metadata = map<string, json>;
+type Tags = string[];
 
 enum Priority {
   Low,
@@ -107,11 +107,11 @@ class Ticket {
   id: UserId,
   title: string,
   priority: Priority,
-  tags: string[],
-  metadata: Metadata?,
+  tags: Tags,
+  notes: string?,
 
   function new(id: UserId, title: string) -> Ticket {
-    Ticket { id: id, title: title.trim(), priority: Priority.Medium, tags: [], metadata: null }
+    Ticket { id: id, title: title.trim(), priority: Priority.Medium, tags: [], notes: null }
   }
 
   function label(self) -> string {
@@ -143,9 +143,11 @@ Rules:
 - **`for` headers require `let`**: `for (let item in items) { ... }`. The `for` block has no trailing `;`. A **statement-style `if`** inside the loop does need `;`.
 - `match (x) { ... }` — parens around the scrutinee.
 
-Common types: `int`, `float`, `bool`, `string`, `null`, `void`, `unknown`, `never`, `json`, `image`, `audio`, `uint8array`, `Ticket[]`, `map<string, int>`, `Ticket?`, `Ticket | string | null`, `"open" | "closed"`, `1 | 2 | 3`.
+Common types: `int`, `float`, `bool`, `string`, `null`, `void`, `unknown`, `never`, `uint8array`, `Ticket[]`, `map<string, int>`, `Ticket?`, `Ticket | string | null`, `"open" | "closed"`, `1 | 2 | 3`.
 
-Use `json` for arbitrary valid JSON. Use `unknown` only when the value may be any BAML value, including non-JSON runtime values. No broad implicit coercion: `int + float -> float`, but `int`, `float`, `bool`, `string` are distinct types. Convert with `baml.unstable.string(value)` when building display text.
+Use `unknown` for "any BAML value." No broad implicit coercion: `int + float -> float`, but `int`, `float`, `bool`, `string` are distinct types. Convert with `baml.unstable.string(value)` when building display text.
+
+> **Note:** A built-in `json` type (`null | bool | int | float | string | json[] | map<string, json>`) is part of the language design and works in newer CLIs. In older builds you'll see `unresolved type: json` — prefer concrete classes + `baml.json.from_string<T>(s)` (§6) until your toolchain catches up.
 
 ## 5. Collections and strings
 
@@ -197,63 +199,68 @@ function count_by_priority(tickets: Ticket[]) -> map<string, int> {
 
 ## 6. JSON
 
+The most reliable direction today is **string → typed value**: decode a JSON payload straight into a class with `baml.json.from_string<T>(s)`.
+
 ```baml
 class Email { id: string, from: string, subject: string, body: string, }
 
 function load_emails(raw: string) -> Email[] {
   baml.json.from_string<Email[]>(raw)
 }
-
-function encode_tickets(tickets: Ticket[]) -> string {
-  baml.json.stringify_pretty(tickets.to_json())
-}
-
-function read_optional_string(obj: map<string, json>, key: string) -> string? {
-  let value = obj.get(key) ?? null;
-
-  match (value) {
-    let s: string => s,
-    _ => null,
-  }
-}
 ```
 
-Canonical helpers (run `baml describe baml.json` for the live list): `parse`, `stringify`, `stringify_pretty`, `from_string<T>`, `from_json<T>`, `to_json`, `to_string`.
+`baml.json.from_string<T>(s)` throws `JsonParseError | JsonDecodeError` on bad input. In current CLIs the dotted error-type paths (`baml.json.JsonParseError`) don't resolve from a `throws` annotation; the call still works without declaring them upstream. To handle bad input, wrap in a `catch` arm matched on a simpler sentinel.
 
-Serialization:
-- On a concretely typed value: `value.to_json()` returns `json`. Honors user-defined `to_json` overrides.
-- For type parameters or abstract `T`: `baml.json.to_json<T>(v)`.
-- Some values aren't JSON-serializable (function-like values, etc.) — serialization can throw `JsonSerializationError`.
+The full helper set under `baml.json` (read the source at `baml_std/baml/ns_json/json.baml` if `baml describe baml.json` does not resolve):
 
-Keep wire data as `json` at the boundary, then narrow with `from_json` before domain logic.
+- `from_string<T>(s: string) -> T` — decode a string straight into `T`. **Verified working.**
+- `from_json<T>(j: json) -> T` — decode a `json` value into `T`.
+- `parse(s: string) -> json` — parse a string to an untyped `json` value.
+- `stringify(j: json) -> string` / `stringify_pretty(j: json) -> string` — encode `json` back to a string.
+- `to_string<T>(v: T) -> string` — encode any BAML value to its JSON string.
+- `to_json<T>(v: T) -> json` — encode any BAML value to its `json` representation. Equivalent to `v.to_json()` when `T` is concrete.
+
+> **Toolchain note:** helpers that produce or consume `json` (`parse`, `stringify`, `to_json`, `value.to_json()`) require a CLI build with the `json` type alias resolved into root scope. Older CLIs throw `unresolved type: json`. Until your CLI catches up, do everything through `from_string<T>` — feed in concrete classes, never `json`-typed receivers.
+
+Keep wire data behind a typed boundary: decode once with `from_string<T>`, then work with the typed value.
 
 ## 7. Files, HTTP, shell, env
 
 ```baml
+class WeatherReply { city: string, temp_c: float, conditions: string, }
+
 function read_text(path: string) -> string {
   baml.fs.read(path)
 }
 
-function write_report(path: string, results: Ticket[]) -> int {
-  baml.fs.write(path, baml.json.stringify_pretty(results.to_json()))
+function write_report(path: string, content: string) -> int {
+  baml.fs.write(path, content)
 }
 
-function fetch_json(url: string) -> json {
+function fetch_weather(url: string) -> WeatherReply {
   let res = baml.http.fetch(url);
 
   if (!res.ok()) {
     throw "HTTP " + baml.unstable.string(res.status_code);
   };
 
-  baml.json.parse(res.text())
+  baml.json.from_string<WeatherReply>(res.text())
 }
 
 function required_key(name: string) -> string {
   baml.env.get_or_panic(name)
 }
+
+function run_script(cmd: string) -> string {
+  let out = baml.sys.shell(cmd, null);
+  out.stdout.to_string()
+}
 ```
 
-Use `baml.sys.shell` sparingly — useful for temporary bridges, but repeated shell calls dominate runtime and make tests brittle. Prefer one structured bridge call over many tiny shell calls. See `baml:bridges`.
+`baml.http.fetch(url) -> Response` — Response has `.ok()`, `.status_code`, `.text()`, `.bytes()`.
+`baml.sys.shell(cmd, options?) -> ShellOutput` — ShellOutput has `.stdout: uint8array`, `.stderr: uint8array`, `.exit_code: int`, `.ok()`. Decode bytes with `.to_string()`.
+
+Use `baml.sys.shell` sparingly — repeated shell calls dominate runtime and make tests brittle. Prefer one structured bridge call over many tiny shell calls. See `baml:bridges`.
 
 ## 8. Match and errors
 
@@ -266,34 +273,33 @@ function priority_weight(p: Priority) -> int {
   }
 }
 
-function json_summary(value: json) -> string {
+function tag_type(value: int | string | bool) -> string {
   match (value) {
-    null => "null",
-    let text: string => "string:" + text,
-    let n: int => "int:" + baml.unstable.string(n),
-    let items: json[] => "array:" + baml.unstable.string(items.length()),
-    let obj: map<string, json> => "object:" + baml.unstable.string(obj.length()),
-    _ => "other",
+    _: int => "int",
+    _: string => "string",
+    _: bool => "bool",
   }
 }
 ```
 
-`let <name>: <Type> =>` binds the narrowed value. `_` is the wildcard.
+`_: <Type> =>` narrows by type and produces the right-hand value. `_` is the wildcard.
+
+> **Newer CLIs** also support the **`let <name>: <Type> =>`** form that binds the narrowed value: `match (v) { let s: string => s, _ => "other" }`. Older CLIs reject this as "Expected pattern, found let" — stick with `_: T =>` for portability.
 
 ```baml
-class ParseError { message: string, }
+class BadInput { message: string, }
 
-function require_non_empty(value: string) -> string throws ParseError {
+function require_non_empty(value: string) -> string throws BadInput {
   let trimmed = value.trim();
   if (trimmed.length() == 0) {
-    throw ParseError { message: "expected non-empty string" };
+    throw BadInput { message: "expected non-empty string" };
   };
   trimmed
 }
 
 function safe_title(value: string) -> string {
   require_non_empty(value) catch (e) {
-    _: ParseError => "untitled",
+    _: BadInput => "untitled",
   }
 }
 ```

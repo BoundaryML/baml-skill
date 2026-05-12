@@ -72,13 +72,22 @@ Things to notice:
 class ParsedTicket { subject: string, body: string, priority: int, }
 class Routed       { ticket: ParsedTicket, queue: string, }
 
-function parse_ticket(raw: string)         -> ParsedTicket { client: FastOpenAI  prompt #"..."# }
-function route_ticket(t: ParsedTicket)     -> Routed       { client: FastOpenAI  prompt #"..."# }
+function parse_ticket(raw: string) -> ParsedTicket {
+  client: "openai/gpt-4o-mini"
+  prompt #"parse: {{ raw }}  {{ ctx.output_format }}"#
+}
+
+function route_ticket(t: ParsedTicket) -> Routed {
+  client: "openai/gpt-4o-mini"
+  prompt #"route: {{ t }}  {{ ctx.output_format }}"#
+}
 
 function handle(raw: string) -> Routed {
   route_ticket(parse_ticket(raw))
 }
 ```
+
+Keep `client:` and `prompt #"..."#` on their own lines — the parser rejects one-liner LLM function bodies that combine them.
 
 Don't pass JSON strings between stages. Typed values give compile-time guarantees and skip a redundant encode/decode.
 
@@ -86,15 +95,27 @@ Don't pass JSON strings between stages. Typed values give compile-time guarantee
 
 ```baml
 enum Intent { Cancel, Refund, Question, Spam, }
+class Response { message: string, }
 
 function classify_intent(text: string) -> Intent {
   client: "openai/gpt-4o-mini"
   prompt #"classify the intent of: {{ text }}  {{ ctx.output_format }}"#
 }
 
-function handle_cancel(text: string)   -> Response { client: FastOpenAI  prompt #"..."# }
-function handle_refund(text: string)   -> Response { client: FastOpenAI  prompt #"..."# }
-function handle_question(text: string) -> Response { client: FastOpenAI  prompt #"..."# }
+function handle_cancel(text: string) -> Response {
+  client: "openai/gpt-4o-mini"
+  prompt #"cancel: {{ text }}  {{ ctx.output_format }}"#
+}
+
+function handle_refund(text: string) -> Response {
+  client: "openai/gpt-4o-mini"
+  prompt #"refund: {{ text }}  {{ ctx.output_format }}"#
+}
+
+function handle_question(text: string) -> Response {
+  client: "openai/gpt-4o-mini"
+  prompt #"question: {{ text }}  {{ ctx.output_format }}"#
+}
 
 function handle_message(text: string) -> Response {
   match (classify_intent(text)) {
@@ -109,36 +130,44 @@ function handle_message(text: string) -> Response {
 - `match (x)` has parens around the scrutinee.
 - Use a cheap model (`"openai/gpt-4o-mini"`, Haiku) for the classifier and the expensive one for the branch that actually does the work.
 
-### Type narrowing with `let` bindings
+### Type narrowing in `match` arms
 
 ```baml
-function json_to_string(value: json) -> string {
+function describe(value: int | string | bool) -> string {
   match (value) {
-    null => "null",
-    let s: string => s,
-    let n: int => baml.unstable.string(n),
-    let items: json[] => baml.json.stringify(items.to_json()),
-    let obj: map<string, json> => baml.json.stringify(obj.to_json()),
-    _ => "other",
+    _: int => "int",
+    _: string => "string",
+    _: bool => "bool",
   }
 }
 ```
 
-`let <name>: <Type> =>` binds the narrowed value inside the arm. Standard for `json`-typed switches.
+`_: <Type> =>` matches when the scrutinee narrows to that type. Newer CLIs also support `let <name>: <Type> => …` to bind the narrowed value, but the `_:` form ships in current builds.
 
 ## 4. Error propagation
 
 ```baml
 class StageError { stage: string, message: string, }
 
-function stage1(s: string) -> A throws StageError { /* ... */ }
-function stage2(a: A)      -> B throws StageError { /* ... */ }
+class Parsed { value: string, }
+class Routed { destination: string, }
 
-function pipeline(s: string) -> B throws StageError {
-  stage2(stage1(s))
+function parse_stage(s: string) -> Parsed throws StageError {
+  if (s.length() == 0) {
+    throw StageError { stage: "parse", message: "empty input" };
+  };
+  Parsed { value: s.trim() }
 }
 
-function pipeline_safe(s: string) -> B? {
+function route_stage(p: Parsed) -> Routed throws StageError {
+  Routed { destination: "queue:" + p.value }
+}
+
+function pipeline(s: string) -> Routed throws StageError {
+  route_stage(parse_stage(s))
+}
+
+function pipeline_safe(s: string) -> Routed? {
   pipeline(s) catch (e) {
     _: StageError => null,
   }

@@ -51,7 +51,7 @@ testset "<suite_name>" {
 - `<suite_name>` and `<case_name>` are string literals.
 - Test path for `-i` is `<suite>::<case>`.
 - Test body is a list of statements (`let`, calls, asserts).
-- Asserts available: `assert.equal(a, b)`, `assert.not_equal(a, b)`, `assert.true(p)`, `assert.false(p)`, `assert.throws(expr, ErrorType)`.
+- Asserts available today: `assert.equal(actual, expected)`, `assert.is_true(cond)`, `assert.not_null(value)`, `assert.contains(haystack, needle)` (string substring). No `not_equal` / `true` / `false` / `throws` in current builds — see §5 for the catch-based pattern.
 
 ## 3. Nested testsets for grouping
 
@@ -64,7 +64,7 @@ testset "sentiment" {
     testset t {
       test "single example" {
         let r = classify_sentiment("today is " + t);
-        assert.equal(r.feeling, t);
+        assert.equal(r, t);
       }
     }
   }
@@ -78,15 +78,20 @@ Fully-qualified case ID: `sentiment::happy::single example` (testset names join 
 You almost never want a test to call a live LLM. The pattern: capture the model's reply once, paste it as a fixture, decode it with the JSON stdlib, exercise the rest of the pipeline.
 
 ```baml
+// The LLM function `classify_email` returns `Intent` and lives in your project
+// (defined as in `baml:llm-functions`). For tests, decode a captured reply
+// straight into `Intent` — the parsing logic the runtime would apply on a live
+// model response is the same logic `baml.json.from_string<Intent>` runs.
+
+class Email { id: string, from: string, subject: string, body: string, }
 class Intent {
   kind: "billing" | "support" | "sales" | "spam" | "other",
   confidence: float,
   rationale: string,
 }
 
-function classify_email(email: Email) -> Intent {
-  client: FastOpenAI
-  prompt #"..."#
+function load_emails(raw: string) -> Email[] {
+  baml.json.from_string<Email[]>(raw)
 }
 
 testset "intent_parse" {
@@ -117,7 +122,9 @@ For pipelines: feed each stage cached JSON via `baml.json.from_string<StageType>
 
 > **Do not define your own `$` names.** The `<fn>$parse` companion pattern from older guides is deprecated — use the JSON stdlib directly.
 
-## 5. `assert.throws` for error paths
+## 5. Testing error paths — catch + assert pattern
+
+There is no `assert.throws` in current CLIs. The portable pattern is to `catch` the expected throw into a sentinel value, then assert on it. Both arms of the `catch` must produce a value compatible with the success path's type, so plan a sentinel that fits.
 
 ```baml
 function divide(a: int, b: int) -> int throws string {
@@ -130,13 +137,34 @@ testset "divide" {
     assert.equal(divide(10, 2), 5);
   }
 
-  test "by zero throws" {
-    assert.throws(divide(10, 0), string);   // expects a thrown string
+  test "by zero caught" {
+    let result = divide(10, 0) catch (e) { _: string => -1 };
+    assert.equal(result, -1);
   }
 }
 ```
 
-`assert.throws` takes the expression as the first arg (lazy-evaluated) and the expected throw type as the second.
+For typed errors:
+
+```baml
+class BadInput { message: string, }
+
+function require_positive(n: int) -> int throws BadInput {
+  if (n <= 0) { throw BadInput { message: "must be positive" } };
+  n
+}
+
+testset "require_positive" {
+  test "rejects zero" {
+    let caught_msg = require_positive(0) catch (e) {
+      _: BadInput => -1
+    };
+    assert.equal(caught_msg, -1);
+  }
+}
+```
+
+If you need the message: capture it into a side variable inside the catch arm before returning the sentinel.
 
 ## 6. Test discovery
 
@@ -144,9 +172,10 @@ testset "divide" {
 
 ## 7. Common pitfalls
 
+- **Reaching for `assert.throws` / `assert.not_equal` / `assert.true` / `assert.false`** — these don't exist in current builds. The only asserts are `equal`, `is_true`, `not_null`, `contains`. Use the catch-and-assert pattern from §5 for error paths; use `assert.is_true(a != b)` for inequality.
 - **Live LLM call in a test** — slow, costs tokens, flaky. Decode cached JSON with `baml.json.from_string<T>(raw)`.
-- **Defining `<fn>$parse`** — deprecated. Use `baml.json.from_string<T>` directly. The gist explicitly says: "Do not define your own `$` names."
-- **`baml.json.decode_str` / `encode`** — wrong API names. The current names are `parse`, `stringify`, `stringify_pretty`, `from_string`, `from_json`, `to_json`, `to_string`.
+- **Defining `<fn>$parse`** — deprecated. Use `baml.json.from_string<T>` directly. The agent guide says: "Do not define your own `$` names."
+- **`baml.json.decode_str` / `encode`** — wrong API names. The current ones are `parse`, `stringify`, `stringify_pretty`, `from_string`, `from_json`, `to_json`, `to_string` (the encode-side helpers need a CLI build with the `json` type alias resolved).
 - **Forgetting `;` after `let`** — every statement in a test body needs a trailing semicolon.
 - **`assert.equal` argument order** — actual first, expected second by convention.
 - **No `assert` at all** — a `test` block with no asserts passes vacuously. The compiler doesn't warn; you have to remember.
