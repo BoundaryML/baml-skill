@@ -1,0 +1,15 @@
+{
+  "name": "boundaryml-baml",
+  "owner": {
+    "name": "BoundaryML",
+    "url": "https://github.com/BoundaryML"
+  },
+  "description": "Official BAML plugin for Claude Code — five skills that teach Claude to write idiomatic BAML.",
+  "plugins": [
+    {
+      "name": "baml",
+      "source": ".",
+      "description": "Five skills: core (always-load), llm-functions, pipelines, testing, bridges. Auto-trigger when Claude opens a .baml file or is asked how to install / use BAML."
+    }
+  ]
+}
