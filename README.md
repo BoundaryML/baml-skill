@@ -30,15 +30,16 @@ All five skills land together. They auto-load in any Claude Code session.
 ```
 baml-skill/
 ├── .claude-plugin/
-│   ├── marketplace.json              # marketplace catalog (one plugin: baml)
-│   └── plugin.json                   # plugin manifest
+│   └── marketplace.json              # marketplace catalog (one plugin: baml at ./plugins/baml)
 ├── README.md                         # this file
-└── skills/
-    ├── core/SKILL.md                 # foundation; always-load
-    ├── llm-functions/SKILL.md        # function ... { client: ...  prompt #"..."# }
-    ├── pipelines/SKILL.md            # composing typed LLM stages
-    ├── testing/SKILL.md              # testset blocks + cached JSON fixtures
-    └── bridges/SKILL.md              # baml_sdk Python client + shell bridges
+└── plugins/baml/
+    ├── .claude-plugin/plugin.json    # plugin manifest
+    └── skills/
+        ├── core/SKILL.md             # foundation; always-load
+        ├── llm-functions/SKILL.md    # function ... { client: ...  prompt #"..."# }
+        ├── pipelines/SKILL.md        # composing typed LLM stages
+        ├── testing/SKILL.md          # testset blocks + cached JSON fixtures
+        └── bridges/SKILL.md          # baml_sdk Python client + shell bridges
 ```
 
 ## Editing the skills
@@ -46,13 +47,13 @@ baml-skill/
 ```bash
 # Symlink the work-in-progress copy into your global skills dir for fast iteration.
 for s in core llm-functions pipelines testing bridges; do
-  ln -sf "$PWD/skills/$s" ~/.claude/skills/baml-$s-dev
+  ln -sf "$PWD/plugins/baml/skills/$s" ~/.claude/skills/baml-$s-dev
 done
-# Edit any skills/<name>/SKILL.md
+# Edit any plugins/baml/skills/<name>/SKILL.md
 # Restart your Claude Code session; skills auto-reload.
 ```
 
-When happy, bump `version` in `.claude-plugin/plugin.json` and commit.
+When happy, bump `version` in `plugins/baml/.claude-plugin/plugin.json` and commit.
 
 ## Versioning
 

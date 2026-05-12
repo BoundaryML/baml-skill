@@ -8,7 +8,7 @@
   "plugins": [
     {
       "name": "baml",
-      "source": ".",
+      "source": "./plugins/baml",
       "description": "Five skills: core (always-load), llm-functions, pipelines, testing, bridges. Auto-trigger when Claude opens a .baml file or is asked how to install / use BAML."
     }
   ]
