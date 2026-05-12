@@ -82,29 +82,32 @@ The bridge should be thin, generic, and protocol-driven.
 // ---------------------------------------------------------------------------
 class BridgeRequest {
   op: "query" | "execute" | "sign",
-  payload: string,                              // pre-encoded JSON string
+  payload: json,
 }
 
 class BridgeResponse {
   ok: bool,
-  data: string?,                                // pre-encoded JSON string
+  data: json?,
   error: string?,
 }
 
 function call_bridge(req: BridgeRequest) -> BridgeResponse {
-  // The host bridge expects argv: op, payload (already-stringified JSON).
-  let out = baml.sys.shell("python3 bridge.py " + req.op + " '" + req.payload + "'", null);
+  let payload_json = baml.json.stringify(req.to_json());
+  let request_path = ".baml_bridge_request.json";
+
+  baml.fs.write(request_path, payload_json);
+  // Same caveat: command line below is illustrative; sync with your bridge script.
+  let out = baml.sys.shell("python3 bridge.py " + request_path, null);
 
   if (!out.ok()) {
     throw "bridge exited " + baml.unstable.string(out.exit_code) + ": " + out.stderr.to_string();
   };
 
-  // stdout is uint8array; decode to string before from_string<T>.
   baml.json.from_string<BridgeResponse>(out.stdout.to_string())
 }
 ```
 
-Note: `baml.sys.shell(cmd, options?)` returns `ShellOutput { stdout: uint8array, stderr: uint8array, exit_code: int }` (plus `.ok()`). Decode the byte buffer with `.to_string()`. The encode direction (typed value -> JSON string for the request) needs `baml.json.stringify` / `value.to_json()`, which require a CLI build with the `json` type alias resolved. Until your toolchain supports those, keep request payloads as strings (pre-encoded JSON or simpler delimited formats) and decode only the response.
+Note: `baml.sys.shell(cmd, options?)` returns `ShellOutput { stdout: uint8array, stderr: uint8array, exit_code: int }` plus `.ok()`. Decode the byte buffer with `.to_string()` before handing it to `baml.json.from_string<T>`. `baml.json.stringify(req.to_json())` round-trips a typed request to JSON.
 
 Bridge rules:
 

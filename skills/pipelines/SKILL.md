@@ -1,6 +1,6 @@
 ---
 name: pipelines
-description: Use when composing multiple BAML functions into a typed pipeline — `let stage1 = ...; let stage2 = ...; Result { ... }`. Covers function-to-function composition with typed values flowing between stages, dispatch via `match` on enums / literal unions / `let <name>: <Type> =>` bindings, error propagation with `throws T` / `catch (e) { _: T => ... }`, and fan-out patterns (sequential in BAML, parallel via host). Prerequisite: baml:core. Often paired with baml:llm-functions.
+description: Use when composing multiple BAML functions into a typed pipeline — `let stage1 = ...; let stage2 = ...; Result { ... }`. Covers function-to-function composition with typed values flowing between stages, dispatch via `match` on enums / literal unions / `let <name>: <Type> =>` bindings, error propagation with `throws T` / `catch (e) { T => ... }` type-only arms, and fan-out patterns (sequential in BAML, parallel via host). Prerequisite: baml:core. Often paired with baml:llm-functions.
 ---
 
 # baml:pipelines
@@ -130,19 +130,22 @@ function handle_message(text: string) -> Response {
 - `match (x)` has parens around the scrutinee.
 - Use a cheap model (`"openai/gpt-4o-mini"`, Haiku) for the classifier and the expensive one for the branch that actually does the work.
 
-### Type narrowing in `match` arms
+### Type narrowing with `let` bindings
 
 ```baml
-function describe(value: int | string | bool) -> string {
+function json_to_string(value: json) -> string {
   match (value) {
-    _: int => "int",
-    _: string => "string",
-    _: bool => "bool",
+    null => "null",
+    let s: string => s,
+    let n: int => baml.unstable.string(n),
+    let items: json[] => baml.json.stringify(items.to_json()),
+    let obj: map<string, json> => baml.json.stringify(obj.to_json()),
+    _ => "other",
   }
 }
 ```
 
-`_: <Type> =>` matches when the scrutinee narrows to that type. Newer CLIs also support `let <name>: <Type> => …` to bind the narrowed value, but the `_:` form ships in current builds.
+`let <name>: <Type> =>` binds the narrowed value inside the arm. Use it whenever you need to reach into the narrowed value, like serializing a sub-structure or pulling a field. `_: <Type> =>` matches without binding when you don't need the value.
 
 ## 4. Error propagation
 
@@ -169,7 +172,7 @@ function pipeline(s: string) -> Routed throws StageError {
 
 function pipeline_safe(s: string) -> Routed? {
   pipeline(s) catch (e) {
-    _: StageError => null,
+    StageError => null,
   }
 }
 ```
@@ -198,7 +201,7 @@ function summarize_all(docs: string[]) -> string[] {
 
 - **String-passing between stages** — see §2. Use typed values; the compiler catches drift.
 - **Picking too-expensive a classifier model** — classifier-then-handler is the cheapest pattern. Cheap classifier, expensive worker.
-- **Catching too broadly** — `catch (e) { _ => ... }` swallows the error type. Match on the specific type (`_: StageError => ...`) so unexpected failures still propagate.
+- **Catching too broadly** — `catch (e) { _ => ... }` swallows the error type. Use a specific arm (`catch (e) { StageError => ... }`) so unexpected failures still propagate.
 - **Live LLM tests on the pipeline** — slow and flaky. Decode cached JSON fixtures with `baml.json.from_string<T>(raw)` to exercise the parsing/orchestration paths deterministically. See `baml:testing`.
 - **`for / in` is sequential** — for true concurrency, fan out at the host layer.
 - **Missing `{{ ctx.output_format }}` on stages** — every LLM stage with a typed return needs it.

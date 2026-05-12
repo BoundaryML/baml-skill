@@ -138,7 +138,7 @@ testset "divide" {
   }
 
   test "by zero caught" {
-    let result = divide(10, 0) catch (e) { _: string => -1 };
+    let result = divide(10, 0) catch (e) { string => -1 };
     assert.equal(result, -1);
   }
 }
@@ -157,7 +157,7 @@ function require_positive(n: int) -> int throws BadInput {
 testset "require_positive" {
   test "rejects zero" {
     let caught_msg = require_positive(0) catch (e) {
-      _: BadInput => -1
+      BadInput => -1
     };
     assert.equal(caught_msg, -1);
   }
