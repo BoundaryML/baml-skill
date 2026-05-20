@@ -142,6 +142,7 @@ Rules:
 - Functions that return nothing declare `-> void` (not `-> null`). Use `return;` for early exit.
 - **`for` headers require `let`**: `for (let item in items) { ... }`. The `for` block has no trailing `;`. A **statement-style `if`** inside the loop does need `;`.
 - `match (x) { ... }` — parens around the scrutinee.
+- **Recursive and mutually recursive calls are fully supported** — a function may call itself or any other same-project function with no special annotation.
 
 Common types: `int`, `float`, `bool`, `string`, `null`, `void`, `unknown`, `never`, `json`, `uint8array`, `Ticket[]`, `map<string, int>`, `Ticket?`, `Ticket | string | null`, `"open" | "closed"`, `1 | 2 | 3`.
 
