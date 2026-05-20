@@ -21,7 +21,15 @@ brew tap boundaryml/baml
 brew install baml
 ```
 
-The binary currently installs as `baml-cli`; `which baml` may return nothing on day one. Use `which baml-cli` if needed.
+`baml-py` ships **three binaries** with distinct responsibilities:
+
+| Binary | Role | Key subcommands |
+|---|---|---|
+| `baml-lang` | Standalone language runtime | `run`, `describe`, `fmt`, `test` |
+| `baml` | Python SDK CLI | `generate`, `check` |
+| `baml-cli` | Alias for `baml` | same as `baml` |
+
+`baml` and `baml-cli` are the Python SDK CLI — they do **not** expose `run` or `describe`. Always use `baml-lang` for those. `baml-lang` has no `init` subcommand. Also note: `baml check` may misreport stdlib namespaces like `baml.math` as unknown; use `baml-lang run -e` as a compile check instead.
 
 For a per-Python-project dependency: `uv add baml_core`.
 
@@ -67,23 +75,27 @@ function judge(config: root.Config, output: string) -> Score {
 ## 3. The agent loop
 
 ```bash
-baml run --list                          # compile + list callable functions
-baml describe --symbols                  # list project symbols
-baml describe baml.json                  # JSON helpers under baml.json (modules work)
-baml describe String                     # method list for the String class
-baml test --list
-baml test -i "suite::case"               # run one case
-baml run --function main --json-args @args.json --output json
-baml run -e 'some_helper("sample")'      # quick eval; recompiles whole project
-baml fmt baml_src/main.baml              # format in place
-baml generate                            # regenerate host-language client code
+# --- baml-lang: language runtime (run / describe / fmt / test) ---
+baml-lang run --list                          # compile + list callable functions
+baml-lang describe --symbols                  # list project symbols
+baml-lang describe baml.json                  # JSON helpers under baml.json (modules work)
+baml-lang describe String                     # method list for the String class
+baml-lang test --list
+baml-lang test -i "suite::case"               # run one case
+baml-lang run --function main --json-args @args.json --output json
+baml-lang run -e 'some_helper("sample")'      # quick eval; recompiles whole project
+baml-lang fmt baml_src/main.baml              # format in place
+
+# --- baml / baml-cli: Python SDK CLI (generate) ---
+baml generate                                 # regenerate host-language client code
 ```
 
 Rules:
 
-- Run `baml describe` instead of inventing stdlib names. Module dotted paths (`baml.json`, `baml.fs`) and top-level classes (`Array`, `Map`, `Int`, `Float`, `Bool`) are valid arguments — `describe baml.json` prints every helper under that namespace.
+- `baml-lang` is required for `run`, `describe`, `fmt`, and `test` — `baml` and `baml-cli` do not have these subcommands and will error with "unrecognized subcommand".
+- Run `baml-lang describe` instead of inventing stdlib names. Module dotted paths (`baml.json`, `baml.fs`) and top-level classes (`Array`, `Map`, `Int`, `Float`, `Bool`) are valid arguments — `describe baml.json` prints every helper under that namespace.
 - The standard library is basically like TypeScript, but module-level functions use `snake_case`.
-- Keep the entire project compiling — `run -e` still compiles all `.baml` files. Use it as a syntax check.
+- Keep the entire project compiling — `baml-lang run -e` still compiles all `.baml` files. Use it as a syntax check (prefer this over `baml check`, which can misreport stdlib namespaces as unknown).
 - Use `--json-args` for classes, arrays, maps, optionals, unions, and nested input.
 - Use `--output json` when a host program reads BAML output.
 - Format touched `.baml` files before finishing.
@@ -342,7 +354,7 @@ Prefer:
 - `value.to_json()` for concretely typed → `json`; `baml.json.to_json<T>` for abstract `T`.
 - `map.get`, `array.at`, and explicit null handling.
 - Deterministic tests for parsing, validation, scoring (see `baml:testing`).
-- `baml describe`, `baml run --list`, `baml test --list`, and `baml fmt` as the normal agent loop.
+- `baml-lang describe`, `baml-lang run --list`, `baml-lang test --list`, and `baml-lang fmt` as the normal agent loop.
 
 Avoid:
 - Inventing stdlib helper names without `baml describe`.
