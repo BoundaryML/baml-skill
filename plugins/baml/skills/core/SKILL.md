@@ -82,6 +82,7 @@ baml generate                            # regenerate host-language client code
 Rules:
 
 - Run `baml describe` instead of inventing stdlib names. Module dotted paths (`baml.json`, `baml.fs`) and top-level classes (`Array`, `Map`, `Int`, `Float`, `Bool`) are valid arguments — `describe baml.json` prints every helper under that namespace.
+- **`baml describe` output reflects internal source spelling, which is camelCase** (e.g., `charAt`, `indexOf`, `replaceAll`). Do not copy-paste those names into `.baml` files. The correct invocation form in baml-lang is always **snake_case** (e.g., `char_at`, `index_of`, `replace_all`). This applies to baml-cli ≥ 0.223.0; if you are on baml-py v0.222.0 the CLI may accept camelCase, but write snake_case to stay compatible with current and future runtimes.
 - The standard library is basically like TypeScript, but module-level functions use `snake_case`.
 - Keep the entire project compiling — `run -e` still compiles all `.baml` files. Use it as a syntax check.
 - Use `--json-args` for classes, arrays, maps, optionals, unions, and nested input.
@@ -327,8 +328,9 @@ Avoid panics for normal control flow. Prefer `map.get`, `array.at`, typed throws
 - **`for` block has no trailing `;`** — but a statement-style `if` inside it does.
 - **`-> null` instead of `-> void`** — empty-return functions are `-> void`.
 - **camelCase method names** like `toLowerCase`, `replaceAll`, `indexOf` — wrong. The current stdlib is snake_case: `to_lower_case`, `replace_all`, `index_of`. User-defined functions are also snake_case.
+- **`baml describe` shows camelCase** — `baml describe String` prints internal source names (`charAt`, `indexOf`, `replaceAll`). These reflect the underlying implementation spelling, not the invocation form. Always translate to snake_case before using.
 - **`baml.json.encode` / `decode_str`** — not the API. It's `parse`, `stringify`, `stringify_pretty`, `from_string`, `from_json`, `to_json`.
-- **Inventing stdlib names** — run `baml describe baml.json` (or `String`, `Array`, `Map`) instead of guessing.
+- **Inventing stdlib names** — run `baml describe baml.json` (or `String`, `Array`, `Map`) instead of guessing, but remember to convert camelCase output to snake_case (see above).
 - **`length()` returns codepoints**, not bytes. There's no `to_bytes()` on `string` in the current stdlib; reach for a bridge if you need byte length.
 - **No regex** in stdlib. Use `.split()`, `.replace_all()`, or a bridge.
 - **`catch (e) { _: T => … }` pattern** — wrong. Catch arms are type-only: `catch (e) { T => value }` (or `_ => value` for the wildcard arm).
