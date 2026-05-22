@@ -315,7 +315,7 @@ function safe_title(value: string) -> string {
 }
 ```
 
-`catch` is an **expression** — each arm must produce a type compatible with the success path. Unhandled throw types continue upward. `throws T` is part of the function signature; the compiler enforces that callers either `catch` or re-`throw`. You can throw any value (classes, strings, ints) but classes give callers a typed shape to match on.
+`catch` is an **expression** — each arm must produce a type compatible with the success path. Unhandled throw types continue upward. `throws T` is part of the function signature and is visible to callers, but the compiler does **not** enforce that callers catch or re-throw it — a caller that ignores a declared throw will compile fine and produce a runtime panic ("uncaught throw") if the throw fires. You can throw any value (classes, strings, ints) but classes give callers a typed shape to match on.
 
 Avoid panics for normal control flow. Prefer `map.get`, `array.at`, typed throws, and explicit null handling.
 

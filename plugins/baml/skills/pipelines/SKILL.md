@@ -177,7 +177,7 @@ function pipeline_safe(s: string) -> Routed? {
 }
 ```
 
-`throws T` is part of the signature. The compiler enforces that callers either `catch` the error or re-`throw` (or propagate by also declaring `throws T`). Throw classes give callers a typed shape to match on; you can also throw strings or ints if the failure is simple.
+`throws T` is part of the signature and documents what the function can raise, but the compiler does **not** enforce that callers handle it. A caller that ignores a declared throw will compile without error; if the throw fires at runtime the program panics with "uncaught throw". Always `catch` or re-declare `throws T` on the caller when throw handling matters. Throw classes give callers a typed shape to match on; you can also throw strings or ints if the failure is simple.
 
 `catch` is an expression — each arm produces a value compatible with the success-path type.
 
