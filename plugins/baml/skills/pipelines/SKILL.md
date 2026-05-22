@@ -179,6 +179,12 @@ function pipeline_safe(s: string) -> Routed? {
 
 `throws T` is part of the signature. The compiler enforces that callers either `catch` the error or re-`throw` (or propagate by also declaring `throws T`). Throw classes give callers a typed shape to match on; you can also throw strings or ints if the failure is simple.
 
+Two structural requirements apply to pipeline error handling:
+
+1. **Every throwable class must have `message: string`** — the compiler requires it for structural compatibility with `baml.errors.InvalidArgument`. The example above already follows this: `StageError` has `stage: string, message: string,`. A class without `message: string` produces a misleading `'X is missing baml.errors.InvalidArgument'` error at the call site.
+
+2. **Stdlib calls propagate `baml.errors.InvalidArgument` transitively** — stdlib methods such as `String.substring` or `baml.json.from_string` may throw `baml.errors.InvalidArgument`. Any pipeline stage that calls them must include `baml.errors.InvalidArgument` in its `throws` union, and so must every stage above it that doesn't `catch` it. The fix is widening the union: `throws StageError | baml.errors.InvalidArgument`.
+
 `catch` is an expression — each arm produces a value compatible with the success-path type.
 
 ## 5. Fan-out

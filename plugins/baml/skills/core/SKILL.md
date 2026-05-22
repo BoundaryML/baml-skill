@@ -315,7 +315,11 @@ function safe_title(value: string) -> string {
 }
 ```
 
-`catch` is an **expression** — each arm must produce a type compatible with the success path. Unhandled throw types continue upward. `throws T` is part of the function signature; the compiler enforces that callers either `catch` or re-`throw`. You can throw any value (classes, strings, ints) but classes give callers a typed shape to match on.
+`catch` is an **expression** — each arm must produce a type compatible with the success path. Unhandled throw types continue upward. `throws T` is part of the function signature; the compiler enforces that callers either `catch` or re-`throw`.
+
+**Throwable class requirement:** every class used in a `throws` declaration must have a `message: string` field. The compiler requires structural compatibility with `baml.errors.InvalidArgument`; omitting the field produces a confusing `'X is missing baml.errors.InvalidArgument'` error. You can also throw bare strings or ints for simple failures, but a class with `message: string` (and any additional fields) is the right default.
+
+**Stdlib throws contract:** several stdlib methods can throw `baml.errors.InvalidArgument` — for example `String.substring` with an out-of-range index, numeric conversions, and `baml.json.from_string` on malformed input. Any function that calls such methods — directly or transitively — must include `baml.errors.InvalidArgument` in its own `throws` union or the compiler will reject it. Run `baml describe String` (or the relevant module) to see which methods declare a throws type.
 
 Avoid panics for normal control flow. Prefer `map.get`, `array.at`, typed throws, and explicit null handling.
 
@@ -333,6 +337,8 @@ Avoid panics for normal control flow. Prefer `map.get`, `array.at`, typed throws
 - **No regex** in stdlib. Use `.split()`, `.replace_all()`, or a bridge.
 - **`catch (e) { _: T => … }` pattern** — wrong. Catch arms are type-only: `catch (e) { T => value }` (or `_ => value` for the wildcard arm).
 - **Direct indexing panics** — `array[0]` on an empty array crashes; prefer `.at(0)` which returns `T?`.
+- **Throwable class missing `message: string`** — every class in a `throws` declaration must have `message: string`. The compiler error (`'X is missing baml.errors.InvalidArgument'`) points at the caller, but the fix is adding `message: string,` to the thrown class, not changing the `throws` declaration.
+- **Missing `baml.errors.InvalidArgument` in `throws`** — stdlib methods like `String.substring`, `baml.json.from_string`, and range-checked operations can throw `baml.errors.InvalidArgument`. Any function calling them must add `baml.errors.InvalidArgument` to its `throws` union (e.g. `throws StageError | baml.errors.InvalidArgument`). This requirement is transitive: a pipeline stage that calls such a method propagates the requirement to every function above it.
 
 ## 10. Design defaults
 
