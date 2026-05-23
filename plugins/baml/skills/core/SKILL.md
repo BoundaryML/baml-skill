@@ -147,6 +147,17 @@ Common types: `int`, `float`, `bool`, `string`, `null`, `void`, `unknown`, `neve
 
 Use `json` for arbitrary valid JSON — it's a structural alias for `null | bool | int | float | string | json[] | map<string, json>`. Use `unknown` only when the value may be any BAML value, including non-JSON runtime values. No broad implicit coercion: `int + float -> float`, but `int`, `float`, `bool`, `string` are distinct types. Convert with `baml.unstable.string(value)` when building display text.
 
+**Operators** — full set of infix and prefix operators:
+
+| Category     | Operators                        | Notes                                                    |
+|--------------|----------------------------------|----------------------------------------------------------|
+| Arithmetic   | `+`  `-`  `*`  `/`  `%`         | `int op int -> int`, `float op float -> float`, `int op float -> float` |
+| Unary        | `-x`  `!x`                       | negate number; boolean NOT                               |
+| Comparison   | `==`  `!=`  `<`  `<=`  `>`  `>=` | returns `bool`; works on numeric types and `string`      |
+| Logic        | `&&`  `\|\|`                     | short-circuit; both operands must be `bool`              |
+| Null-coerce  | `??`                             | `T? ?? T -> T`; right side evaluated only when left is `null` |
+| Concatenation| `+`                              | `string + string -> string`; no auto-coerce — use `baml.unstable.string(v)` first |
+
 ## 5. Collections and strings
 
 ```baml
