@@ -333,6 +333,8 @@ Avoid panics for normal control flow. Prefer `map.get`, `array.at`, typed throws
 - **No regex** in stdlib. Use `.split()`, `.replace_all()`, or a bridge.
 - **`catch (e) { _: T => … }` pattern** — wrong. Catch arms are type-only: `catch (e) { T => value }` (or `_ => value` for the wildcard arm).
 - **Direct indexing panics** — `array[0]` on an empty array crashes; prefer `.at(0)` which returns `T?`.
+- **`int / int` is truncating integer division** — `7 / 2` yields `3`, not `3.5`. Division truncates toward zero. Cast to `float` first if you need the fractional result.
+- **No `%` modulo operator** — use the identity `a - (a / b) * b` for the remainder. For example, `col = index - (index / width) * width` gives the column in a flat grid of `width` columns.
 
 ## 10. Design defaults
 
