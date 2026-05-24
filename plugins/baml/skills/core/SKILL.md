@@ -190,7 +190,7 @@ function count_by_priority(tickets: Ticket[]) -> map<string, int> {
 }
 ```
 
-- Instance methods on `string`, `Array`, and `Map` are **snake_case**: `.to_lower_case()`, `.to_upper_case()`, `.replace_all()`, `.replace()`, `.trim()`, `.includes()`, `.starts_with()`, `.ends_with()`, `.index_of()`, `.char_at()`, `.matches()`, `.split()`, `.substring()`, `.length()`, `.push()`, `.join()`, `.at()`, `.set()`, `.get()`, `.has()`.
+- Instance methods on `string`, `Array`, and `Map` are **snake_case**: `.to_lower_case()`, `.to_upper_case()`, `.replace_all()`, `.replace()`, `.trim()`, `.includes()`, `.starts_with()`, `.ends_with()`, `.index_of()`, `.char_at()`, `.matches()`, `.split()`, `.substring(start: int, end_exclusive: int)`, `.length()`, `.push()`, `.join()`, `.at()`, `.set()`, `.get()`, `.has()`. Note: `substring`'s second argument is an **end-exclusive** index (not a length), so `"hello".substring(1, 3)` → `"el"`.
 - Module functions under `baml.*` are also **snake_case**: `baml.json.from_string`, `baml.fs.read`, `baml.env.get_or_panic`.
 - Prefer `array.at(i)` and `map.get(key)` (return `T?`) when absence is normal. Direct indexing (`emails[0]`) panics on OOB.
 - Don't assume regex, numeric parsing, byte length, UUID, base64, crypto, or date/time helpers exist — check `baml describe`.
