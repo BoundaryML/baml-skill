@@ -193,6 +193,7 @@ function count_by_priority(tickets: Ticket[]) -> map<string, int> {
 - Instance methods on `string`, `Array`, and `Map` are **snake_case**: `.to_lower_case()`, `.to_upper_case()`, `.replace_all()`, `.replace()`, `.trim()`, `.includes()`, `.starts_with()`, `.ends_with()`, `.index_of()`, `.char_at()`, `.matches()`, `.split()`, `.substring()`, `.length()`, `.push()`, `.join()`, `.at()`, `.set()`, `.get()`, `.has()`.
 - Module functions under `baml.*` are also **snake_case**: `baml.json.from_string`, `baml.fs.read`, `baml.env.get_or_panic`.
 - Prefer `array.at(i)` and `map.get(key)` (return `T?`) when absence is normal. Direct indexing (`emails[0]`) panics on OOB.
+- **Arrays and maps are heap-allocated and passed by reference.** Mutations inside a called function (`.push()`, `.set()`, `.splice()`) are visible to the caller — there is no implicit copy. This enables efficient mutable patterns: pass a shared accumulator or grid into helper functions and mutate it directly. `Array.splice(index, delete_count)` removes elements in-place, which makes mutable backtracking (push candidate → recurse → splice to undo) cheap without copying the whole array each frame.
 - Don't assume regex, numeric parsing, byte length, UUID, base64, crypto, or date/time helpers exist — check `baml describe`.
 
 ## 6. JSON
