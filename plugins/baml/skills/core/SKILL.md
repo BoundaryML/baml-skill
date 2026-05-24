@@ -194,6 +194,7 @@ function count_by_priority(tickets: Ticket[]) -> map<string, int> {
 - Module functions under `baml.*` are also **snake_case**: `baml.json.from_string`, `baml.fs.read`, `baml.env.get_or_panic`.
 - Prefer `array.at(i)` and `map.get(key)` (return `T?`) when absence is normal. Direct indexing (`emails[0]`) panics on OOB.
 - Don't assume regex, numeric parsing, byte length, UUID, base64, crypto, or date/time helpers exist — check `baml describe`.
+- **String comparison operators** (`<`, `<=`, `>`, `>=`) do **lexicographic (Unicode code-point) order**. Useful for character-range checks: `c >= "a" && c <= "z"` (works correctly on single-character strings).
 
 ## 6. JSON
 
