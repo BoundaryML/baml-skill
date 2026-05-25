@@ -139,6 +139,7 @@ Rules:
 - Object constructors and maps: `key: value`.
 - Class methods take explicit `self`; factories (`new`) are ordinary methods without `self`.
 - Last expression in a block is the return value. A trailing `;` discards the value.
+- **`if/else` is an expression** — assign it directly: `let label = if (score > 0) { "pass" } else { "fail" }`. The else branch is required when used as a value. Statement-style `if` (result discarded) still ends with `;`.
 - Functions that return nothing declare `-> void` (not `-> null`). Use `return;` for early exit.
 - **`for` headers require `let`**: `for (let item in items) { ... }`. The `for` block has no trailing `;`. A **statement-style `if`** inside the loop does need `;`.
 - `match (x) { ... }` — parens around the scrutinee.
