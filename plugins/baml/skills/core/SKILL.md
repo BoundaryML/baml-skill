@@ -190,6 +190,7 @@ function count_by_priority(tickets: Ticket[]) -> map<string, int> {
 }
 ```
 
+- Array literals use `[]` for any element type: `let scores: int[] = [1, 2, 3];`, `let flags: bool[] = [true, false];`, `let empty: string[] = [];`. The `[]` syntax is not string-specific.
 - Instance methods on `string`, `Array`, and `Map` are **snake_case**: `.to_lower_case()`, `.to_upper_case()`, `.replace_all()`, `.replace()`, `.trim()`, `.includes()`, `.starts_with()`, `.ends_with()`, `.index_of()`, `.char_at()`, `.matches()`, `.split()`, `.substring()`, `.length()`, `.push()`, `.join()`, `.at()`, `.set()`, `.get()`, `.has()`.
 - Module functions under `baml.*` are also **snake_case**: `baml.json.from_string`, `baml.fs.read`, `baml.env.get_or_panic`.
 - Prefer `array.at(i)` and `map.get(key)` (return `T?`) when absence is normal. Direct indexing (`emails[0]`) panics on OOB.
