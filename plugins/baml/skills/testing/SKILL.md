@@ -124,7 +124,7 @@ For pipelines: feed each stage cached JSON via `baml.json.from_string<StageType>
 
 ## 5. Testing error paths — catch + assert pattern
 
-There is no `assert.throws` in current CLIs. The portable pattern is to `catch` the expected throw into a sentinel value, then assert on it. Both arms of the `catch` must produce a value compatible with the success path's type, so plan a sentinel that fits.
+There is no `assert.throws` in current CLIs. The portable pattern is to `catch` the expected throw into a sentinel value, then assert on it. Every catch arm must produce **exactly the same type** as the success expression — you cannot change the result type in a catch arm. Plan a sentinel value that belongs to the success type (e.g. `-1` for `int`, `null` for `T?`). To re-raise instead of supplying a value, use `throw` inside the arm.
 
 ```baml
 function divide(a: int, b: int) -> int throws string {

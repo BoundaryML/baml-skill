@@ -315,7 +315,9 @@ function safe_title(value: string) -> string {
 }
 ```
 
-`catch` is an **expression** — each arm must produce a type compatible with the success path. Unhandled throw types continue upward. `throws T` is part of the function signature; the compiler enforces that callers either `catch` or re-`throw`. You can throw any value (classes, strings, ints) but classes give callers a typed shape to match on.
+`catch` is an **expression** — each arm must produce **exactly the same type** as the success expression (a catch arm cannot change the result type). The only exception is using `throw` inside an arm, which produces `never` and satisfies the type checker without contributing a value. Unhandled throw types continue upward. `throws T` is part of the function signature; the compiler enforces that callers either `catch` or re-`throw`. You can throw any value (classes, strings, ints) but classes give callers a typed shape to match on.
+
+If you need to transform an error into a different type, wrap the whole expression in a function that has the wider return type, or re-throw a different error class from the catch arm.
 
 Avoid panics for normal control flow. Prefer `map.get`, `array.at`, typed throws, and explicit null handling.
 
@@ -332,6 +334,7 @@ Avoid panics for normal control flow. Prefer `map.get`, `array.at`, typed throws
 - **`length()` returns codepoints**, not bytes. There's no `to_bytes()` on `string` in the current stdlib; reach for a bridge if you need byte length.
 - **No regex** in stdlib. Use `.split()`, `.replace_all()`, or a bridge.
 - **`catch (e) { _: T => … }` pattern** — wrong. Catch arms are type-only: `catch (e) { T => value }` (or `_ => value` for the wildcard arm).
+- **Returning a different type from a catch arm** — type error. Each catch arm must return exactly the success type. To avoid supplying a value, use `throw` inside the arm (`catch (e) { BadInput => throw "wrapped: ${e.message}" }`), which produces `never` and satisfies the type checker.
 - **Direct indexing panics** — `array[0]` on an empty array crashes; prefer `.at(0)` which returns `T?`.
 
 ## 10. Design defaults

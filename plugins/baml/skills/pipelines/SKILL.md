@@ -179,7 +179,7 @@ function pipeline_safe(s: string) -> Routed? {
 
 `throws T` is part of the signature. The compiler enforces that callers either `catch` the error or re-`throw` (or propagate by also declaring `throws T`). Throw classes give callers a typed shape to match on; you can also throw strings or ints if the failure is simple.
 
-`catch` is an expression — each arm produces a value compatible with the success-path type.
+`catch` is an expression — each arm must produce **exactly the same type** as the success expression. A catch arm cannot change the result type; use `throw` inside an arm (produces `never`) when you want to re-raise or convert the error rather than supply a value.
 
 ## 5. Fan-out
 
@@ -205,4 +205,4 @@ function summarize_all(docs: string[]) -> string[] {
 - **Live LLM tests on the pipeline** — slow and flaky. Decode cached JSON fixtures with `baml.json.from_string<T>(raw)` to exercise the parsing/orchestration paths deterministically. See `baml:testing`.
 - **`for / in` is sequential** — for true concurrency, fan out at the host layer.
 - **Missing `{{ ctx.output_format }}` on stages** — every LLM stage with a typed return needs it.
-- **Forgetting that `match` and `catch` are expressions** — each arm must produce a value compatible with the surrounding type. Don't put a `;` after the closing `}`.
+- **Forgetting that `match` and `catch` are expressions** — each arm must produce **exactly the same type** as the success expression (not merely "compatible"). Don't put a `;` after the closing `}`.
