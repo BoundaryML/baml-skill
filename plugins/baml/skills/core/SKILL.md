@@ -137,7 +137,7 @@ Rules:
 - **Class fields**: `name: Type,` — colon between name and type, **comma after each field**.
 - Function parameters and `let` annotations: `name: Type`.
 - Object constructors and maps: `key: value`.
-- Class methods take explicit `self`; factories (`new`) are ordinary methods without `self`.
+- Class methods take explicit `self`; factories (`new`) are ordinary methods without `self`. Call them as `ClassName.factory_name(args)` and `instance.method_name(args)` respectively — e.g. `Ticket.new("t1", "Fix bug")` and `t.label()`.
 - Last expression in a block is the return value. A trailing `;` discards the value.
 - Functions that return nothing declare `-> void` (not `-> null`). Use `return;` for early exit.
 - **`for` headers require `let`**: `for (let item in items) { ... }`. The `for` block has no trailing `;`. A **statement-style `if`** inside the loop does need `;`.
