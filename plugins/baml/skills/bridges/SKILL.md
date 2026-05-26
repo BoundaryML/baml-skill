@@ -114,7 +114,7 @@ Bridge rules:
 - Keep domain policy in BAML; keep external capability in the bridge.
 - Don't hardcode one component, route, table, or test case in the bridge.
 - Use JSON or a documented line protocol. Avoid fragile string scraping.
-- When the host calls BAML, use `baml run --output json`.
+- When the host calls BAML, use `baml run --output-format json`.
 - Surface bridge errors via stderr, exit code, and context.
 - Add tests for BAML-side protocol classes (the bridge wire format) and bridge happy/error paths.
 

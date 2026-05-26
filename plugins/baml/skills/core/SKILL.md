@@ -73,7 +73,7 @@ baml describe baml.json                  # JSON helpers under baml.json (modules
 baml describe String                     # method list for the String class
 baml test --list
 baml test -i "suite::case"               # run one case
-baml run --function main --json-args @args.json --output json
+baml run --function main --json-args @args.json --output-format json
 baml run -e 'some_helper("sample")'      # quick eval; recompiles whole project
 baml fmt baml_src/main.baml              # format in place
 baml generate                            # regenerate host-language client code
@@ -85,7 +85,7 @@ Rules:
 - The standard library is basically like TypeScript, but module-level functions use `snake_case`.
 - Keep the entire project compiling — `run -e` still compiles all `.baml` files. Use it as a syntax check.
 - Use `--json-args` for classes, arrays, maps, optionals, unions, and nested input.
-- Use `--output json` when a host program reads BAML output.
+- Use `--output-format json` when a host program reads BAML output.
 - Format touched `.baml` files before finishing.
 - Run `baml generate` after changing functions/types that application code imports.
 
