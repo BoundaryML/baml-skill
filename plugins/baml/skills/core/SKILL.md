@@ -332,6 +332,7 @@ Avoid panics for normal control flow. Prefer `map.get`, `array.at`, typed throws
 - **`length()` returns codepoints**, not bytes. There's no `to_bytes()` on `string` in the current stdlib; reach for a bridge if you need byte length.
 - **No regex** in stdlib. Use `.split()`, `.replace_all()`, or a bridge.
 - **`catch (e) { _: T => … }` pattern** — wrong. Catch arms are type-only: `catch (e) { T => value }` (or `_ => value` for the wildcard arm).
+- **`root.errors.*` for stdlib error types** — wrong. The `root.*` namespace is your project's root namespace, not an alias for the standard library. Stdlib error types always use the `baml.` prefix (e.g., `baml.errors.InvalidArgument`, `baml.json.JsonSerializationError`). Using `root.errors.*` fails compilation without naming the namespace mismatch as the cause.
 - **Direct indexing panics** — `array[0]` on an empty array crashes; prefer `.at(0)` which returns `T?`.
 
 ## 10. Design defaults
