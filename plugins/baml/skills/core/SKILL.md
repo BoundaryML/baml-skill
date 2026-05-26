@@ -81,6 +81,7 @@ baml generate                            # regenerate host-language client code
 
 Rules:
 
+- **Writing `testset` / `test` blocks or calling `assert.*`?** Load `baml:testing` — that syntax is not covered here.
 - Run `baml describe` instead of inventing stdlib names. Module dotted paths (`baml.json`, `baml.fs`) and top-level classes (`Array`, `Map`, `Int`, `Float`, `Bool`) are valid arguments — `describe baml.json` prints every helper under that namespace.
 - The standard library is basically like TypeScript, but module-level functions use `snake_case`.
 - Keep the entire project compiling — `run -e` still compiles all `.baml` files. Use it as a syntax check.
