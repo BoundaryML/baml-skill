@@ -67,6 +67,7 @@ function judge(config: root.Config, output: string) -> Score {
 ## 3. The agent loop
 
 ```bash
+baml init                                # create baml.toml + baml_src/ skeleton (fresh project)
 baml run --list                          # compile + list callable functions
 baml describe --symbols                  # list project symbols
 baml describe baml.json                  # JSON helpers under baml.json (modules work)
@@ -81,6 +82,7 @@ baml generate                            # regenerate host-language client code
 
 Rules:
 
+- **In a fresh directory** (no `baml.toml`), run `baml init` first — every other command will fail with "doesn't look like a BAML project" until it exists.
 - Run `baml describe` instead of inventing stdlib names. Module dotted paths (`baml.json`, `baml.fs`) and top-level classes (`Array`, `Map`, `Int`, `Float`, `Bool`) are valid arguments — `describe baml.json` prints every helper under that namespace.
 - The standard library is basically like TypeScript, but module-level functions use `snake_case`.
 - Keep the entire project compiling — `run -e` still compiles all `.baml` files. Use it as a syntax check.
