@@ -1,6 +1,6 @@
 ---
 name: llm-functions
-description: Use when defining or editing a BAML LLM function — any `function X(...) -> T { client: ...  prompt #"..."# }` declaration. Covers the `client<llm>` block (UpperCamelCase) with `provider` + `options`, the inline `client:` (colon) binding in the function body, the `client: "provider/model"` shorthand, Jinja prompts with `{{ ctx.output_format }}`, and structured output via the return type. Prerequisite: baml:core.
+description: Use when defining or editing a BAML LLM function — any `function X(...) -> T { client: ...  prompt: #"..."# }` declaration. Covers the `client<llm>` block (UpperCamelCase) with `provider` + `options`, the inline `client:` (colon) binding in the function body, the `client: "provider/model"` shorthand, Jinja prompts with `{{ ctx.output_format }}`, and structured output via the return type. Prerequisite: baml:core.
 ---
 
 # baml:llm-functions
@@ -28,7 +28,7 @@ class Intent {
 
 function classify_email(email: Email) -> Intent {
   client: FastOpenAI
-  prompt #"
+  prompt: #"
     Classify the user's email.
 
     From: {{ email.from }}
@@ -45,7 +45,7 @@ Three pieces:
 
 1. **`client<llm> Name { provider X  options { ... } }`** — declares a reusable LLM client. **`UpperCamelCase`** name (e.g. `FastOpenAI`, `Sonnet`).
 2. **A return type** — usually a `class`, enum, or literal union. BAML uses it to validate the response.
-3. **Function body** with `client:` (colon!) and `prompt #"..."#`. **You may still see the bare form `client FastOpenAI` in old examples; prefer `client:` for new code.**
+3. **Function body** with `client:` and `prompt:` — **both take a colon**, each on its own line. **You may still see the bare forms `client FastOpenAI` / `prompt #"..."#` in old examples; `baml fmt` normalizes to the colon form, so emit `client:` / `prompt:`.**
 
 ## 2. `client<llm>` declarations
 
@@ -91,7 +91,7 @@ For small functions, demos, and tests, skip the `client<llm>` block and use a `p
 ```baml
 function classify_email_quick(email: Email) -> Intent {
   client: "openai/gpt-4o-mini"
-  prompt #"
+  prompt: #"
     Classify the user's email.
     From: {{ email.from }}
     Subject: {{ email.subject }}
@@ -110,7 +110,7 @@ Prompts use BAML block strings (`#"..."#`) with Jinja templates:
 ```baml
 function summarize_tickets(tickets: Ticket[]) -> string {
   client: FastOpenAI
-  prompt #"
+  prompt: #"
     Summarize these tickets.
 
     {% for t in tickets %}
@@ -144,7 +144,7 @@ class Decision {
 
 function decide(case: string) -> Decision {
   client: FastOpenAI
-  prompt #"
+  prompt: #"
     Review the case and return a decision.
     Case: {{ case }}
     {{ ctx.output_format }}

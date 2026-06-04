@@ -9,7 +9,7 @@ Foundation for any BAML work. **BAML is a typed language for reliable LLM functi
 
 Other skills to optionally load:
 
-- `baml:llm-functions` — defining `function X(...) -> T { client: Y  prompt #"..."# }`
+- `baml:llm-functions` — defining `function X(...) -> T { client: Y  prompt: #"..."# }`
 - `baml:pipelines` — composing typed LLM stages; routing via `match`
 - `baml:testing` — `testset` / `test` blocks + `assert.*`
 - `baml:bridges` — `baml generate` + the Python `baml_sdk` client; host bridges
@@ -22,10 +22,6 @@ brew install baml
 ```
 
 The binary currently installs as `baml-cli`; `which baml` may return nothing on day one. Use `which baml-cli` if needed.
-
-For a per-Python-project dependency: `uv add baml_core`.
-
-VS Code extension VSIX: https://drive.google.com/drive/folders/1M6KJzWd2Ee1vcvGjY_Gkbm7GXUWlylzJ — then `code --install-extension <path>.vsix`.
 
 ## 2. Project shape
 
@@ -68,7 +64,8 @@ function judge(config: root.Config, output: string) -> Score {
 
 ```bash
 baml run --list                          # compile + list callable functions
-baml describe --symbols                  # list project symbols
+baml run                                 # runs `function main() -> null` if the project defines one
+baml describe                            # list all project symbols
 baml describe baml.json                  # JSON helpers under baml.json (modules work)
 baml describe String                     # method list for the String class
 baml test --list
@@ -134,18 +131,30 @@ Rules:
 - **Top-level type aliases end with `;`** (`type UserId = string;`).
 - Prefer **`snake_case`** for user-defined functions, parameters, and locals.
 - **Class names** and **`client<llm>` names**: `UpperCamelCase`.
-- **Class fields**: `name: Type,` — colon between name and type, **comma after each field**.
+- **Class fields**: `name: Type,` — colon between name and type, **comma after each field**. (The language also accepts the bare `name Type` form you'll see in stdlib source; `baml fmt` normalizes to the colon form, so emit that.)
 - Function parameters and `let` annotations: `name: Type`.
 - Object constructors and maps: `key: value`.
 - Class methods take explicit `self`; factories (`new`) are ordinary methods without `self`.
 - Last expression in a block is the return value. A trailing `;` discards the value.
-- Functions that return nothing declare `-> void` (not `-> null`). Use `return;` for early exit.
-- **`for` headers require `let`**: `for (let item in items) { ... }`. The `for` block has no trailing `;`. A **statement-style `if`** inside the loop does need `;`.
+- **`null` is the unit value**: functions that return nothing declare `-> null` and end with `null` (or `return null;`). Use `return;` / `return -value;` for early exit. (`-> void` also compiles, but `-> null` is canonical.)
+- **`for` headers require `let`** — both the for-in form `for (let item in items) { ... }` and the C-style `for (let i = 0; i < n; i += 1) { ... }`. Bare `for (item in items)` is a syntax error. The `for` block has no trailing `;`; a **statement-style `if`** inside the loop does need `;`.
 - `match (x) { ... }` — parens around the scrutinee.
 
 Common types: `int`, `float`, `bool`, `string`, `null`, `void`, `unknown`, `never`, `json`, `uint8array`, `Ticket[]`, `map<string, int>`, `Ticket?`, `Ticket | string | null`, `"open" | "closed"`, `1 | 2 | 3`.
 
 Use `json` for arbitrary valid JSON — it's a structural alias for `null | bool | int | float | string | json[] | map<string, json>`. Use `unknown` only when the value may be any BAML value, including non-JSON runtime values. No broad implicit coercion: `int + float -> float`, but `int`, `float`, `bool`, `string` are distinct types. Convert with `baml.unstable.string(value)` when building display text.
+
+Classes and functions can be **generic**:
+
+```baml
+class Box<T> {
+  value: T,
+
+  function of(v: T) -> Box<T> { Box<T> { value: v } }
+}
+
+let b = Box<int>.of(3);   // b.value : int
+```
 
 ## 5. Collections and strings
 
@@ -190,10 +199,22 @@ function count_by_priority(tickets: Ticket[]) -> map<string, int> {
 }
 ```
 
-- Instance methods on `string`, `Array`, and `Map` are **snake_case**: `.to_lower_case()`, `.to_upper_case()`, `.replace_all()`, `.replace()`, `.trim()`, `.includes()`, `.starts_with()`, `.ends_with()`, `.index_of()`, `.char_at()`, `.matches()`, `.split()`, `.substring()`, `.length()`, `.push()`, `.join()`, `.at()`, `.set()`, `.get()`, `.has()`.
+- Instance methods on `string`, `Array`, and `Map` are **snake_case**: `.to_lower_case()`, `.to_upper_case()`, `.replace_all()`, `.replace()`, `.trim()`, `.includes()`, `.starts_with()`, `.ends_with()`, `.index_of()`, `.char_at()`, `.matches()`, `.split()`, `.substring()`, `.length()`, `.char_count()`, `.to_utf8()`, `.push()`, `.join()`, `.at()`, `.set()`, `.get()`, `.has()`.
+- `Array` carries higher-order methods that take **lambdas**: `.map()`, `.reduce()`, `.find()`, `.some()`, `.every()`, `.flat_map()` (no `.filter` — use `.map`/`.reduce` or a loop). `Int`/`Float` carry real math: `.abs()`, `.clamp()`, `.pow()`, `.sqrt()`, trig, plus statics `int.parse()`, `float.parse()`.
 - Module functions under `baml.*` are also **snake_case**: `baml.json.from_string`, `baml.fs.read`, `baml.env.get_or_panic`.
 - Prefer `array.at(i)` and `map.get(key)` (return `T?`) when absence is normal. Direct indexing (`emails[0]`) panics on OOB.
-- Don't assume regex, numeric parsing, byte length, UUID, base64, crypto, or date/time helpers exist — check `baml describe`.
+- Numeric parsing (`int.parse`, `float.parse`), **regex** (`s.matches(pattern)`), and byte access (`s.to_utf8()`; `s.length()` is **UTF-8 bytes**, `s.char_count()` is codepoints) all exist. Don't assume UUID, base64, crypto, or date/time helpers — check `baml describe`.
+
+Lambdas and closures are first-class; pass them to higher-order methods or store them in a `let`:
+
+```baml
+function scaled_total(factor: int, xs: int[]) -> int {
+  let scale = (x: int) -> int { x * factor };   // closes over `factor`
+  xs.map(scale).reduce((acc: int, x: int) -> int { acc + x }, 0)
+}
+```
+
+Optional chaining short-circuits on `null`: `u?.name`, `items?.[0]`, `cb?.(42)`, and `?? default` to supply a fallback.
 
 ## 6. JSON
 
@@ -295,7 +316,7 @@ function json_summary(value: json) -> string {
 }
 ```
 
-`let <name>: <Type> =>` binds the narrowed value. `_: <Type> =>` matches without binding. `_` is the wildcard.
+`let <name>: <Type> =>` binds the narrowed value. `_` is the untyped wildcard. (There is no `_: <Type> =>` typed-wildcard arm — bind it with `let` or use bare `_`.)
 
 ```baml
 class BadInput { message: string, }
@@ -315,7 +336,9 @@ function safe_title(value: string) -> string {
 }
 ```
 
-`catch` is an **expression** — each arm must produce a type compatible with the success path. Unhandled throw types continue upward. `throws T` is part of the function signature; the compiler enforces that callers either `catch` or re-`throw`. You can throw any value (classes, strings, ints) but classes give callers a typed shape to match on.
+`catch` is an **expression** — each arm must produce a type compatible with the success path. Arms match the thrown **type only** (`catch (e) { BadInput => ... }`, or `_ => ...` wildcard — not `_: T =>`). `catch` is **non-exhaustive**: throw types you don't match continue upward as if the `catch` weren't there; re-throw inside an arm with `throw e;`. Use **`catch_all`** instead when you want the compiler to require every inferred throw type be covered (a single `_ =>` arm covers them all). `throws T` is part of the function signature; the compiler enforces that callers either catch or re-throw. You can throw any value (classes, strings, ints) but classes give callers a typed shape to match on.
+
+Runtime **panics** (divide-by-zero, out-of-bounds index, missing map key, failed `assert`, `baml.sys.panic(...)`) are not part of the inferred throw set and are not caught by ordinary `catch` / `catch_all`.
 
 Avoid panics for normal control flow. Prefer `map.get`, `array.at`, typed throws, and explicit null handling.
 
@@ -325,13 +348,13 @@ Avoid panics for normal control flow. Prefer `map.get`, `array.at`, typed throws
 - **Forgetting `;` on type aliases** — `type UserId = string;`, not `type UserId = string`.
 - **`function X(self, ...)`** for instance methods; factories like `new` take no `self`.
 - **`for` block has no trailing `;`** — but a statement-style `if` inside it does.
-- **`-> null` instead of `-> void`** — empty-return functions are `-> void`.
+- **`null` is the unit value** — functions that return nothing are `-> null` ending in `null` (or `return null;`). `-> void` also compiles, but `-> null` is canonical.
 - **camelCase method names** like `toLowerCase`, `replaceAll`, `indexOf` — wrong. The current stdlib is snake_case: `to_lower_case`, `replace_all`, `index_of`. User-defined functions are also snake_case.
 - **`baml.json.encode` / `decode_str`** — not the API. It's `parse`, `stringify`, `stringify_pretty`, `from_string`, `from_json`, `to_json`.
 - **Inventing stdlib names** — run `baml describe baml.json` (or `String`, `Array`, `Map`) instead of guessing.
-- **`length()` returns codepoints**, not bytes. There's no `to_bytes()` on `string` in the current stdlib; reach for a bridge if you need byte length.
-- **No regex** in stdlib. Use `.split()`, `.replace_all()`, or a bridge.
-- **`catch (e) { _: T => … }` pattern** — wrong. Catch arms are type-only: `catch (e) { T => value }` (or `_ => value` for the wildcard arm).
+- **`length()` on a string returns UTF-8 bytes**, not codepoints — use `char_count()` for codepoints, and `to_utf8()` for the raw bytes.
+- **Regex exists** via `s.matches(pattern)` (and `int.parse` / `float.parse` for numbers). Don't assume UUID/base64/crypto/date-time — `baml describe` to confirm.
+- **`catch (e) { _: T => … }` pattern** — wrong. Catch arms are type-only: `catch (e) { T => value }` (or `_ => value` for the wildcard arm). The same applies in `match`: `let n: T =>` or bare `_`, never `_: T =>`.
 - **Direct indexing panics** — `array[0]` on an empty array crashes; prefer `.at(0)` which returns `T?`.
 
 ## 10. Design defaults

@@ -1,6 +1,6 @@
 ---
 name: testing
-description: Use when writing or running BAML tests. Covers `testset` / `test` blocks with `let` bindings + `assert.equal` / `assert.*`, running tests with `baml test --list / -i / -e`, decoding cached LLM replies and fixtures via `baml.json.from_string<T>(raw)` (NOT a `$parse` companion — that pattern is deprecated), and nested testsets for grouping. Prerequisite: baml:core. Pair with baml:llm-functions or baml:pipelines if the function under test calls an LLM.
+description: Use when writing or running BAML tests. Covers `testset` / `test` blocks with `let` bindings + `assert.equal` / `assert.*`, running tests with `baml test --list / -i / -e`, decoding cached LLM replies and fixtures via `baml.json.from_string<T>(raw)` or the compiler-synthesized `F$parse(raw)` companion (you don't hand-write `$` names, but the generated one is callable), and nested testsets for grouping. Prerequisite: baml:core. Pair with baml:llm-functions or baml:pipelines if the function under test calls an LLM.
 ---
 
 # baml:testing
@@ -117,10 +117,11 @@ Helpers (run `baml describe baml.json` for the live list):
 
 - `baml.json.from_string<T>(s)` — decode a string straight into type `T` when the whole payload matches.
 - `baml.json.parse(s)` — `string -> json` (untyped), then narrow with `from_json<T>` if you need partial extraction.
+- For an **LLM function** `F`, the compiler also synthesizes a parse-only companion **`F$parse(raw: string) -> ReturnType`** — calling it runs exactly the parser the live call would, against a captured reply. Use it when you want to test the real parsing path (not just generic JSON decode).
 
-For pipelines: feed each stage cached JSON via `baml.json.from_string<StageType>(...)` and assert on the stage's output. No tokens burned, fully deterministic.
+For pipelines: feed each stage cached JSON via `baml.json.from_string<StageType>(...)` (or `Stage$parse(raw)`) and assert on the stage's output. No tokens burned, fully deterministic.
 
-> **Do not define your own `$` names.** The `<fn>$parse` companion pattern from older guides is deprecated — use the JSON stdlib directly.
+> **You don't hand-write `$` names** — the compiler owns the `$` namespace. But the auto-generated `F$parse` companion is real and callable; the deprecated pattern was *defining your own* `<fn>$parse` function, not using the synthesized one.
 
 ## 5. Testing error paths — catch + assert pattern
 
@@ -174,7 +175,7 @@ If you need the message: capture it into a side variable inside the catch arm be
 
 - **Reaching for `assert.throws` / `assert.not_equal` / `assert.true` / `assert.false`** — these don't exist in current builds. The only asserts are `equal`, `is_true`, `not_null`, `contains`. Use the catch-and-assert pattern from §5 for error paths; use `assert.is_true(a != b)` for inequality.
 - **Live LLM call in a test** — slow, costs tokens, flaky. Decode cached JSON with `baml.json.from_string<T>(raw)`.
-- **Defining `<fn>$parse`** — deprecated. Use `baml.json.from_string<T>` directly. The agent guide says: "Do not define your own `$` names."
+- **Defining your own `<fn>$parse`** — wrong; the `$` namespace belongs to the compiler. But the *synthesized* `F$parse(raw) -> ReturnType` for an LLM function `F` is real and callable — use it (or `baml.json.from_string<T>`) to parse a captured reply.
 - **`baml.json.decode_str` / `encode`** — wrong API names. The current ones are `parse`, `stringify`, `stringify_pretty`, `from_string`, `from_json`, `to_json`, `to_string` (the encode-side helpers need a CLI build with the `json` type alias resolved).
 - **Forgetting `;` after `let`** — every statement in a test body needs a trailing semicolon.
 - **`assert.equal` argument order** — actual first, expected second by convention.

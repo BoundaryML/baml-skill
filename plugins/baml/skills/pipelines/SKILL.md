@@ -21,7 +21,7 @@ class TriageResult {
 
 function judge_draft(email: Email, draft: ReplyDraft) -> int {
   client: FastOpenAI
-  prompt #"
+  prompt: #"
     Score this reply from 1 to 5.
     Email:
     {{ email.body }}
@@ -74,12 +74,12 @@ class Routed       { ticket: ParsedTicket, queue: string, }
 
 function parse_ticket(raw: string) -> ParsedTicket {
   client: "openai/gpt-4o-mini"
-  prompt #"parse: {{ raw }}  {{ ctx.output_format }}"#
+  prompt: #"parse: {{ raw }}  {{ ctx.output_format }}"#
 }
 
 function route_ticket(t: ParsedTicket) -> Routed {
   client: "openai/gpt-4o-mini"
-  prompt #"route: {{ t }}  {{ ctx.output_format }}"#
+  prompt: #"route: {{ t }}  {{ ctx.output_format }}"#
 }
 
 function handle(raw: string) -> Routed {
@@ -87,7 +87,7 @@ function handle(raw: string) -> Routed {
 }
 ```
 
-Keep `client:` and `prompt #"..."#` on their own lines — the parser rejects one-liner LLM function bodies that combine them.
+Keep `client:` and `prompt: #"..."#` on their own lines — the parser rejects one-liner LLM function bodies that combine them.
 
 Don't pass JSON strings between stages. Typed values give compile-time guarantees and skip a redundant encode/decode.
 
@@ -99,22 +99,22 @@ class Response { message: string, }
 
 function classify_intent(text: string) -> Intent {
   client: "openai/gpt-4o-mini"
-  prompt #"classify the intent of: {{ text }}  {{ ctx.output_format }}"#
+  prompt: #"classify the intent of: {{ text }}  {{ ctx.output_format }}"#
 }
 
 function handle_cancel(text: string) -> Response {
   client: "openai/gpt-4o-mini"
-  prompt #"cancel: {{ text }}  {{ ctx.output_format }}"#
+  prompt: #"cancel: {{ text }}  {{ ctx.output_format }}"#
 }
 
 function handle_refund(text: string) -> Response {
   client: "openai/gpt-4o-mini"
-  prompt #"refund: {{ text }}  {{ ctx.output_format }}"#
+  prompt: #"refund: {{ text }}  {{ ctx.output_format }}"#
 }
 
 function handle_question(text: string) -> Response {
   client: "openai/gpt-4o-mini"
-  prompt #"question: {{ text }}  {{ ctx.output_format }}"#
+  prompt: #"question: {{ text }}  {{ ctx.output_format }}"#
 }
 
 function handle_message(text: string) -> Response {
