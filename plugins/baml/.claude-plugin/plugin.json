@@ -1,7 +1,7 @@
 {
   "name": "baml",
-  "version": "0.3.0",
-  "description": "Teaches Claude Code to write idiomatic BAML. Ships five skills: `core` (install, syntax, stdlib, agent loop, JSON + match + errors — always load first), `llm-functions` (clients, prompts, structured output, `client:` colon syntax), `pipelines` (composing typed LLM stages, match routing, error propagation), `testing` (testset blocks, cached JSON fixtures via `baml.json.from_string`), `bridges` (the `baml_sdk` Python client, `generator` blocks, shell bridges). All content aligned to the canonical BAML agent guide.",
+  "version": "0.6.0",
+  "description": "Teaches Claude Code to write idiomatic BAML (the baml_language rewrite). One example-dense skill framed around BAML's two halves: the statically-typed, expression-oriented LANGUAGE (basically TypeScript with snake_case methods and `name type` fields — types, classes, generics, closures, optional chaining, control flow, throws/catch/catch_all, stdlib) and the declarative LLM DSL that desugars into it (client<llm>, function + client:/prompt:, generator, test). Every example is compiler-verified against the baml_language CLI; covers how BAML differs from TypeScript, and defers to `baml describe` for everything else.",
   "author": {
     "name": "BoundaryML",
     "url": "https://github.com/BoundaryML"
