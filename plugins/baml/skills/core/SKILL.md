@@ -17,8 +17,10 @@ BAML is a **statically-typed, expression-oriented language with first-class LLM 
 ```bash
 brew tap boundaryml/baml && brew install baml   # binary is `baml-cli` (alias to `baml`)
 
-baml run --list                 # compile + list callable functions (and DSL companions)
-baml run                        # if a `function main() -> null` exists, runs it (reads baml.sys.argv())
+baml init                       # new project here (writes the required baml.toml + baml_src/)
+baml run --list                 # compile + list callable functions
+baml run main                   # run a function by name (bare `baml run` just prints help
+                                #   unless baml.toml has a [scripts] default)
 baml run -e 'add(2, 3)'         # quick eval (recompiles the whole project — also a syntax check)
 baml describe baml.json         # list helpers under a module  ← use for ANYTHING you're unsure of
 baml describe Array             # full method list + docs for a type (Array, Map, String, Int, Float)
@@ -174,13 +176,15 @@ Instance methods are `snake_case` (verify the full set with `baml describe Array
 
 ```baml
 function collections(xs: int[], m: map<string, int>) -> int {
-  // Array: map find reduce some every flat_map slice concat reverse join
-  //        includes index_of push pop shift unshift at length splice
+  // Array: map filter(.collect()) find reduce some every flat_map slice concat
+  //        reverse join sort sort_by includes index_of push pop shift unshift at length splice
   let doubled = xs.map((x: int) -> int { x * 2 });
+  let big     = xs.filter((x: int) -> bool { x > 2 }).collect();   // filter returns an Iterator -> .collect()
   let total   = xs.reduce((acc: int, x: int) -> int { acc + x }, 0);
   let first   = xs.at(0) ?? 0;          // .at / .get return T? — prefer over xs[0]/m[k], which PANIC out of bounds
 
   // Map: get set has keys values delete get_or_insert clear length
+  //      KEYS MUST BE string — map<int, V> compiles but PANICS at runtime
   m.set("seen", (m.get("seen") ?? 0) + 1);
   total + first + (m.get("seen") ?? 0)
 }
@@ -188,12 +192,13 @@ function collections(xs: int[], m: map<string, int>) -> int {
 function strings(s: string) -> string {
   // String: trim to_lower_case to_upper_case replace replace_all split lines
   //         includes starts_with ends_with index_of char_at substring matches (regex)
-  //         length (UTF-8 BYTES) char_count (codepoints) to_utf8 / string.from_utf8
+  //         length / char_count (both CODEPOINTS) — byte length is .to_utf8().length()
+  //         repeat to_utf8 / string.from_utf8
   s.trim().to_lower_case().replace_all("  ", " ")
 }
 ```
 
-Gaps a TS dev will hit: **no `.filter`** (use `.map`/`.reduce`/a loop), **no `String.repeat`**. Empty literals infer their element type on first mutation (`let xs = []; xs.push(1)` makes `xs: int[]`).
+Gaps a TS dev will hit: `.filter` returns an **Iterator** — chain `.collect()` for a `T[]`; no `.remove_at` (use `.splice`). Pitfalls: `char_at(i)` silently returns `""` out of bounds (it never throws or returns null); `"ab".split("")` pads with leading/trailing empties (`["","a","b",""]`). Empty literals infer their element type on first mutation (`let xs = []; xs.push(1)` makes `xs: int[]`).
 
 ## Numbers
 
@@ -256,8 +261,9 @@ function read_or_default(path: string) -> string {
 
 - `baml.sys.argv()` (CLI args), `baml.sys.shell(cmd, null)` → `ShellOutput { stdout/stderr: uint8array, exit_code }` + `.ok()`; also `baml.sys.sleep(ms)`, `baml.sys.now_ms()`, `baml.sys.panic(msg)`.
 - `baml.env.get(name) -> string?` / `baml.env.get_or_panic(name) -> string`. Env is under `baml.env`.
-- `baml.io.input(prompt) -> string` reads a line of user input (use the full `baml.io.` path).
+- `baml.io.println(text)` prints plain text; `baml.io.input(prompt) -> string` reads a line (use the full `baml.io.` path).
 - `log.info/debug/warn/error(data)` for structured logging (arg is a map).
+- Stdlib throws typed errors from `baml.errors.*` (`InvalidArgument`, `ParseError`, `Io`, `Timeout`, …) — match them in `catch` arms; `baml describe baml.errors` lists them all.
 - Asserts (function calls, no `assert` keyword): `assert.equal(actual, expected)`, `assert.is_true(cond)`, `assert.not_null(v)`, `assert.contains(haystack, needle)`. That's the whole set.
 
 ---
@@ -315,7 +321,7 @@ function classify_quick(text: string) -> Intent {
 ```
 
 - The return type (class / enum / literal union) is the schema. Declare it and let BAML validate + retry on malformed JSON. Prefer typed shapes over free-form `json`; make a field `T?` only when the model may legitimately omit it.
-- Prompts are block strings `#"..."#` (no escape processing) with Jinja: `{{ value }}`, `{{ method(x) }}`, `{% for x in xs %}…{% endfor %}`, `{% if c %}…{% endif %}`, `{# comment #}`, plus `{{ ctx.output_format }}` and `_.role(...)` / `_.media(...)` helpers.
+- Prompts are block strings `#"..."#` (no escape processing) with Jinja — inside `{{ }}`/`{% %}` it is Jinja syntax, not BAML: `{{ value }}`, `{{ method(x) }}`, `{% for x in xs %}…{% endfor %}`, `{% if c %}…{% endif %}`, `{# comment #}`, plus `{{ ctx.output_format }}` and `_.role(...)` / `_.media(...)` helpers.
 - Compiles to a plain `classify(email) -> Intent` **plus** companions: `classify$render_prompt`, `classify$build_request`, `classify$parse`, `classify$stream` (callable everywhere, though `baml run --list` shows only `classify(...) -> Intent  [llm]`). **`classify$parse(raw: string) -> Intent`** runs just the parser on an already-captured reply.
 
 ## Pipelines — compose typed functions
@@ -402,8 +408,8 @@ The muscle memory carries over; these are the traps.
 - `client<llm>` `options { ... }` are **whitespace-separated, no colons or commas** — unlike everything else.
 
 **Stdlib:**
-- `.length()` on a string is **UTF-8 bytes**; use `.char_count()` for codepoints.
-- **No `.filter`** on arrays (use `.map`/`.reduce`/a loop), **no `String.repeat`**. There IS rich number math, `int.parse`/`float.parse`, `to_utf8`/`from_utf8`, and `s.matches(pattern)` for regex.
+- `.length()` on a string counts **codepoints** (same as `.char_count()`); byte length is `.to_utf8().length()`.
+- `.filter` yields an Iterator — finish with `.collect()`. There IS `.sort()`/`.sort_by()`, `String.repeat`, rich number math, `int.parse`/`float.parse`, `to_utf8`/`from_utf8`, and `s.matches(pattern)` for regex.
 - Stdlib symbols resolve by short name (`assert.equal`, `log.info`) or full path (`baml.fs.read`, `baml.io.input`); when in doubt use the full `baml.*` path.
 - The LLM `function` (`client:` + `prompt:` + `{{ ctx.output_format }}`) has no TS analog — it desugars into a normal function plus parse/stream companions.
 
