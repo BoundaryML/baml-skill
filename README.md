@@ -1,8 +1,12 @@
 # baml-skill — Claude Code plugin for BAML
 
-Five Claude Code skills that teach the agent to write idiomatic BAML. They auto-trigger when Claude opens a `.baml` file or is asked "how do I install / use BAML?".
+One Claude Code skill that teaches the agent to write idiomatic BAML. It auto-triggers when Claude opens a `.baml` file or is asked "how do I install / use BAML?".
 
-BAML is a typed language for reliable LLM functions, structured output, and small orchestration programs. Without these skills, agents tend to invent stdlib methods (`baml.json.decode_str`, `s.contains()`), forget `{{ ctx.output_format }}` on prompts, and waste turns probing for things that don't exist. With them, they reach for `baml.json.from_string<T>`, snake_case function names, and `client: "openai/gpt-4o-mini"` on the first try.
+The premise: **BAML is two things in one file** — a statically-typed, expression-oriented *language* (basically TypeScript with `snake_case` methods and `name type` class fields: types, classes, generics, closures, optional chaining, control flow, `throws`/`catch`/`catch_all`, a stdlib) and a small declarative *DSL* for LLM calls (`client<llm>`, `function … { client:  prompt: }`, `generator`, `test`) that desugars into that language. The skill is organized around that split, dense with code examples; for any stdlib name or signature it doesn't show, the agent runs `baml describe` instead of guessing.
+
+Every code example in the skill is verified to compile against the `baml_language` CLI.
+
+Without it, agents invent stdlib methods (`baml.json.decode_str`, `s.contains()`), forget `{{ ctx.output_format }}` on prompts, and probe for things that don't exist. With it, they reach for `baml.json.from_string<T>`, snake_case names, and `client: "openai/gpt-4o-mini"` on the first try.
 
 ## Install
 
@@ -11,19 +15,17 @@ BAML is a typed language for reliable LLM functions, structured output, and smal
 /plugin install baml@boundaryml-baml
 ```
 
-All five skills land together. They auto-load in any Claude Code session.
+The skill auto-loads in any Claude Code session.
 
-## The five skills
+## What it covers
 
-| Skill | When it loads |
-|---|---|
-| `baml:core` | **Always** — any `.baml` file or BAML question. Install, project layout with `ns_*` namespaces, the `baml run / describe / fmt / generate` agent loop, syntax essentials (class fields `name: Type,`, snake_case functions, type aliases ending in `;`), stdlib (Collections/Strings, JSON via `baml.json.*`, files/HTTP/shell/env), `match` + typed `throws / catch`, common pitfalls. |
-| `baml:llm-functions` | When defining `function ... -> T { client: ...  prompt #"..."# }`. `client<llm>` declarations (UpperCamelCase, `provider` + `options`), the `client: "provider/model"` shorthand, Jinja prompts with `{{ ctx.output_format }}`, structured output. |
-| `baml:pipelines` | When composing multiple BAML functions. Function-to-function composition, routing via `match` (with `let s: T =>` narrowing), error propagation through `throws T`, host-side fan-out. |
-| `baml:testing` | When writing or running `testset` / `test` blocks. Deterministic LLM tests via cached JSON fixtures + `baml.json.from_string<T>(raw)`. (NOT a `$parse` companion — that pattern is deprecated.) |
-| `baml:bridges` | When integrating with host code or reaching for a host capability. Today's supported host is Python via `baml generate` -> the `baml_sdk` package. Covers the `generator target { ... }` block (in a `.baml` file, not TOML), the `b.<function>` API, and the BAML -> shell bridge pattern. |
+A single `core` skill, heavy on code, light on prose:
 
-`core` is the entry point. Claude is told to load it first when it sees a BAML task, then optionally pull in any of the other four based on what the task actually requires.
+- Install + the `baml describe / run / test / fmt / generate` agent loop, project layout & `ns_` namespaces
+- **The language** — pretty much every part: types & literals (incl. media + literal types), variables/blocks/expressions, functions (tail returns, `-> null` unit, factories, methods, higher-order, lambdas, closures), classes/enums/**generics**, control flow (`if`/`while`/for-in/**C-style for**/`match`), **optional chaining** (`?.`/`?.[]`/`?.()`/`??`), collections & strings (the real method surface), number math, JSON, `throws`/`catch`/**`catch_all`**, and the rest of the stdlib (fs/http/sys/env/io/log/assert)
+- **The DSL** — the LLM layer that desugars into the language: `client<llm>` blocks + `client:` shorthand, LLM functions with Jinja prompts and `{{ ctx.output_format }}`, the `$parse` companion, pipelines, the Python `baml_sdk` generator/bridge, and deterministic testing (incl. loop-generated testsets)
+- **How BAML differs from TypeScript** — `name type` fields, `for...in` iterates values, `null` is unit, no ternary, no `.filter`, `.length()` is bytes, non-exhaustive `catch`, panicking index, and the rest
+- The throughline: **anything not shown → `baml describe <name>`**
 
 ## Layout
 
@@ -35,22 +37,15 @@ baml-skill/
 └── plugins/baml/
     ├── .claude-plugin/plugin.json    # plugin manifest
     └── skills/
-        ├── core/SKILL.md             # foundation; always-load
-        ├── llm-functions/SKILL.md    # function ... { client: ...  prompt #"..."# }
-        ├── pipelines/SKILL.md        # composing typed LLM stages
-        ├── testing/SKILL.md          # testset blocks + cached JSON fixtures
-        └── bridges/SKILL.md          # baml_sdk Python client + shell bridges
+        └── core/SKILL.md             # the skill
 ```
 
-## Editing the skills
+## Editing
 
 ```bash
 # Symlink the work-in-progress copy into your global skills dir for fast iteration.
-for s in core llm-functions pipelines testing bridges; do
-  ln -sf "$PWD/plugins/baml/skills/$s" ~/.claude/skills/baml-$s-dev
-done
-# Edit any plugins/baml/skills/<name>/SKILL.md
-# Restart your Claude Code session; skills auto-reload.
+ln -sf "$PWD/plugins/baml/skills/core" ~/.claude/skills/baml-core-dev
+# Edit plugins/baml/skills/core/SKILL.md, then restart your session; skills auto-reload.
 ```
 
 When happy, bump `version` in `plugins/baml/.claude-plugin/plugin.json` and commit.
@@ -59,15 +54,11 @@ When happy, bump `version` in `plugins/baml/.claude-plugin/plugin.json` and comm
 
 - **0.1.x** — content corrections, no structural changes.
 - **0.2.x** — added or removed sub-skills, restructured.
-- **0.3.x** — aligned to the canonical BAML agent guide (current).
+- **0.3.x** — aligned to the canonical BAML agent guide.
+- **0.4.x** — collapsed the five skills into one lean, example-dense skill.
+- **0.5.x** — restructured around the language/DSL split; expanded language coverage; every example verified against the CLI.
+- **0.6.x** — aligned to the baml_language rewrite: `name type` fields, `-> null` unit, generics, optional chaining, `catch_all`, C-style for, richer stdlib; reconciled against a team syntax reference + the compiler (current).
 - **1.0.0** — stable.
-
-## Canonical source
-
-The skill content tracks the BAML team's canonical agent guide:
-https://gist.github.com/hellovai/4abc7de0ca4a3f4a07b5b3e6b4e0f77e
-
-If the gist updates, sync the affected skill files and bump `version` in `.claude-plugin/plugin.json`.
 
 ## License
 
