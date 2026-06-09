@@ -356,7 +356,7 @@ from baml_sdk import classify          # top-level exports (+ classify_async); n
 intent = classify(email)               # BAML name -> same snake_case in Python
 ```
 
-Run `baml generate` after any schema/function change, and pin `baml_core` to the CLI's version (`pip install --pre baml-core` when the CLI is a nightly — a stable baml_core cannot load nightly bytecode). For capabilities BAML lacks (DBs, sockets, crypto, long-lived servers), use a thin **shell bridge**: `baml.sys.shell` to a host entrypoint with a JSON `op`/`payload` protocol — keep domain logic in BAML, capability in the bridge.
+Run `baml generate` after any schema/function change, and pin `baml_core` to the CLI's version (`pip install --pre baml-core` when the CLI is a nightly — a stable baml_core cannot load nightly bytecode). For capabilities BAML lacks (DBs, crypto, HTTP serving, concurrency — raw TCP/UDP does exist at `baml.net`), use a thin **shell bridge**: `baml.sys.shell` to a host entrypoint with a JSON `op`/`payload` protocol — keep domain logic in BAML, capability in the bridge.
 
 ## Testing — `testset` / `test`, decode cached JSON
 

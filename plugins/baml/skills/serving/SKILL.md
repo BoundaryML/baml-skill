@@ -1,13 +1,18 @@
 ---
 name: serving
-description: Building HTTP servers and long-lived processes around BAML. Load when asked to "build an HTTP server in BAML", expose BAML functions as an API, or run BAML inside a daemon/worker. BAML's stdlib HTTP is client-only (fetch/send/fetch_sse — no listener), so the host owns the socket and BAML owns the typed request logic; this skill gives the verified two-file pattern.
+description: Building HTTP servers and long-lived processes around BAML. Load when asked to "build an HTTP server in BAML", expose BAML functions as an API, or run BAML inside a daemon/worker. BAML's stdlib HTTP is client-only (fetch/send/fetch_sse — no HTTP listener); raw TCP/UDP exists at baml.net, but hand-rolling HTTP over it is the slow path — prefer host owns the socket, BAML owns the typed request logic. This skill gives the verified two-file pattern.
 ---
 
 # Serving — HTTP servers & long-lived processes
 
-**BAML has no server primitive.** `baml describe baml.http` shows `fetch`,
+**BAML has no HTTP server primitive.** `baml describe baml.http` shows `fetch`,
 `send`, `fetch_sse` and the `Request`/`Response`/`SseStream` classes — all
-client-side. Don't search for a listener; split the work:
+client-side. Raw sockets DO exist (`baml describe baml.net`: `TcpListener`,
+`TcpStream`, `UdpSocket`), so a pure-BAML server is possible — but then you are
+hand-rolling HTTP/1.1 parsing, Content-Length body reads, and escaping yourself,
+and the runtime is single-threaded (one connection at a time). Verified in
+arena runs: that path produces a working server but takes 3-4x the turns of the
+bridge below. Unless the task literally requires pure BAML, split the work:
 
 - **Host (Python etc.)** owns the socket, the loop, concurrency.
 - **BAML** owns routing/domain logic as one typed, testable handler function.
@@ -91,8 +96,10 @@ function worker() -> null {
 }
 ```
 
-Run it with `baml run worker`. But the moment you need to **accept** sockets,
-hold DB connections, or fan out concurrently, invert: host loop + BAML logic.
+Run it with `baml run worker`. A pure-BAML TCP server is the same shape
+(`baml.net.TcpListener` accept loop), minus HTTP conveniences. But the moment
+you need real HTTP semantics, DB connections, or concurrent connections,
+invert: host loop + BAML logic.
 `for`/`while` are sequential — concurrency belongs to the host
 (`asyncio.gather` over `*_async` SDK calls).
 

@@ -132,4 +132,4 @@ host's PATH.
 
 The reverse bridge is `baml.sys.shell(cmd, null)` → `ShellOutput { stdout,
 stderr, exit_code }` + `.ok()`. Keep domain logic in BAML and capability
-(DBs, sockets, crypto) in a thin host entrypoint speaking JSON over stdin/stdout.
+(DBs, crypto, HTTP serving, concurrency) in a thin host entrypoint speaking JSON over stdin/stdout.
