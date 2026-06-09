@@ -1,7 +1,7 @@
 {
   "name": "baml",
-  "version": "0.6.0",
-  "description": "Teaches Claude Code to write idiomatic BAML (the baml_language rewrite). One example-dense skill framed around BAML's two halves: the statically-typed, expression-oriented LANGUAGE (basically TypeScript with snake_case methods and `name type` fields — types, classes, generics, closures, optional chaining, control flow, throws/catch/catch_all, stdlib) and the declarative LLM DSL that desugars into it (client<llm>, function + client:/prompt:, generator, test). Every example is compiler-verified against the baml_language CLI; covers how BAML differs from TypeScript, and defers to `baml describe` for everything else.",
+  "version": "0.7.0",
+  "description": "Teaches Claude Code to write idiomatic BAML (the baml_language rewrite). Four example-dense skills: core (the LANGUAGE — basically TypeScript with snake_case methods and `name type` fields — plus the LLM DSL that desugars into it), bridges (calling BAML from a host language: subprocess bridge first, generated SDK with baml_core pinning second), serving (HTTP servers and long-lived processes — host owns the socket, BAML owns the typed handler), and testing (testset/test, assert.*, token-free LLM testing via Fn$parse). Every example is verified against the shipped CLI; defers to `baml describe` for everything else.",
   "author": {
     "name": "BoundaryML",
     "url": "https://github.com/BoundaryML"

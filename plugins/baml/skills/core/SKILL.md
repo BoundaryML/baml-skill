@@ -316,7 +316,7 @@ function classify_quick(text: string) -> Intent {
 
 - The return type (class / enum / literal union) is the schema. Declare it and let BAML validate + retry on malformed JSON. Prefer typed shapes over free-form `json`; make a field `T?` only when the model may legitimately omit it.
 - Prompts are block strings `#"..."#` (no escape processing) with Jinja: `{{ value }}`, `{{ method(x) }}`, `{% for x in xs %}…{% endfor %}`, `{% if c %}…{% endif %}`, `{# comment #}`, plus `{{ ctx.output_format }}` and `_.role(...)` / `_.media(...)` helpers.
-- Compiles to a plain `classify(email) -> Intent` **plus** companions visible in `baml run --list`: `classify$render_prompt`, `classify$build_request`, `classify$parse`, `classify$stream`. **`classify$parse(raw: string) -> Intent`** runs just the parser on an already-captured reply.
+- Compiles to a plain `classify(email) -> Intent` **plus** companions: `classify$render_prompt`, `classify$build_request`, `classify$parse`, `classify$stream` (callable everywhere, though `baml run --list` shows only `classify(...) -> Intent  [llm]`). **`classify$parse(raw: string) -> Intent`** runs just the parser on an already-captured reply.
 
 ## Pipelines — compose typed functions
 
@@ -330,9 +330,9 @@ function triage(email: Email) -> Result {            // NO client: — plain orc
 }
 
 function route(text: string) -> string {             // cheap classifier -> expensive handler
-  match (classify_intent(text)) {
-    Intent.Spam => "ignored",
-    _           => handle(text),
+  match (classify_intent(text).kind) {
+    "spam" => "ignored",
+    _      => handle(text),
   }
 }
 ```
@@ -344,14 +344,19 @@ Pass typed values between stages, not JSON strings. `for/in` is sequential — f
 A `generator` block (in a `.baml` file, **not** TOML) emits the **`baml_sdk`** package:
 
 ```baml
-generator target { output_type "python/pydantic"  output_dir "../"  default_client_mode "sync" }
+generator target {
+  output_type "python/pydantic"
+  output_dir "."                       // relative to the dir holding baml.toml, NOT baml_src/
+  naming_convention "preserve-case"    // REQUIRED; "language" is not supported for python/pydantic
+  default_client_mode "sync"
+}
 ```
 ```python
-from baml_sdk.sync_client import b
-intent = b.classify(email)             # BAML name -> same snake_case in Python
+from baml_sdk import classify          # top-level exports (+ classify_async); no client object
+intent = classify(email)               # BAML name -> same snake_case in Python
 ```
 
-Run `baml generate` after any schema/function change. For capabilities BAML lacks (DBs, sockets, crypto, long-lived servers), use a thin **shell bridge**: `baml.sys.shell` to a host entrypoint with a JSON `op`/`payload` protocol — keep domain logic in BAML, capability in the bridge.
+Run `baml generate` after any schema/function change, and pin `baml_core` to the CLI's version (`pip install --pre baml-core` when the CLI is a nightly — a stable baml_core cannot load nightly bytecode). For capabilities BAML lacks (DBs, sockets, crypto, long-lived servers), use a thin **shell bridge**: `baml.sys.shell` to a host entrypoint with a JSON `op`/`payload` protocol — keep domain logic in BAML, capability in the bridge.
 
 ## Testing — `testset` / `test`, decode cached JSON
 

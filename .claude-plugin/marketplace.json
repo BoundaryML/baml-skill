@@ -4,12 +4,12 @@
     "name": "BoundaryML",
     "url": "https://github.com/BoundaryML"
   },
-  "description": "Official BAML plugin for Claude Code — one lean skill that teaches Claude to write idiomatic BAML.",
+  "description": "Official BAML plugin for Claude Code — lean, example-dense skills that teach Claude to write idiomatic BAML.",
   "plugins": [
     {
       "name": "baml",
       "source": "./plugins/baml",
-      "description": "One example-dense skill framed around BAML's two halves: a general-purpose typed language (basically TypeScript, snake_case methods) and a declarative LLM DSL that desugars into it. Examples verified against the shipped CLI; defers to `baml describe` for everything else. Auto-triggers when Claude opens a .baml file or is asked how to install / use BAML."
+      "description": "Four example-dense skills: core (the typed language + the LLM DSL that desugars into it), bridges (calling BAML from a host language), serving (HTTP servers / long-lived processes around BAML), and testing (testset/test + token-free LLM testing via Fn$parse). Examples verified against the shipped CLI; defers to `baml describe` for everything else. Auto-triggers when Claude opens a .baml file or is asked how to install / use BAML."
     }
   ]
 }
