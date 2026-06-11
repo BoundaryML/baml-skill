@@ -1,0 +1,21 @@
+[stderr] INFO:     Started server process [40638]
+[stderr] INFO:     Waiting for application startup.
+[stderr] INFO:     Application startup complete.
+[stderr] INFO:     Uvicorn running on http://127.0.0.1:8767 (Press CTRL+C to quit)
+INFO:     127.0.0.1:60266 - "GET /health HTTP/1.1" 200 OK
+[stderr] INFO:     ('127.0.0.1', 60267) - "WebSocket /ws" [accepted]
+[stderr] 2026-06-04 00:42:21 INFO     [codeboarding_pro.ws.server:226] WebSocket connected: session b92bb653-2e48-4b04-895b-ac1011512f7a
+[stderr] INFO:     connection open
+[stderr] 2026-06-04 00:42:21 INFO     [tool_registry.manifest:309] has_required_tools: csharp unavailable (dotnet missing); skipping check
+[stderr] 2026-06-04 00:42:21 INFO     [codeboarding_pro.lsp.bootstrap:56] LSP startup attempt 1/3
+[stderr] 2026-06-04 00:42:21 INFO     [codeboarding_pro.session:185] Session b92bb653-2e48-4b04-895b-ac1011512f7a initialized: repo=/Users/dhilanshah/Desktop/baml/baml-skill/baml-skill, project=baml-skill, output=/Users/dhilanshah/Desktop/baml/baml-skill/baml-skill/.codeboarding
+[stderr] 2026-06-04 00:42:21 INFO     [static_analyzer:207] No supported languages detected in /Users/dhilanshah/Desktop/baml/baml-skill/baml-skill; no LSP clients to start.
+[stderr] 2026-06-04 00:42:21 INFO     [codeboarding_pro.file_monitor:106] FileMonitor started for /Users/dhilanshah/Desktop/baml/baml-skill/baml-skill
+[stderr] 2026-06-04 00:42:21 INFO     [codeboarding_pro.session:203] Session b92bb653-2e48-4b04-895b-ac1011512f7a: FileMonitor activated
+[stderr] 2026-06-04 00:42:21 INFO     [codeboarding_pro.head_watcher:46] HeadWatcher started on /Users/dhilanshah/Desktop/baml/baml-skill/baml-skill/.git/HEAD
+[stderr] 2026-06-04 00:42:21 INFO     [codeboarding_pro.session:248] Session b92bb653-2e48-4b04-895b-ac1011512f7a: LSP wiring complete
+[stderr] 2026-06-04 00:42:21 INFO     [codeboarding_pro.lsp.bootstrap:67] LSP clients started successfully (attempt 1)
+[stderr] 2026-06-04 00:43:00 INFO     [watchfiles.main:308] 1 change detected
+[stderr] 2026-06-04 00:53:23 INFO     [watchfiles.main:308] 1 change detected
+[stderr] 2026-06-04 01:17:59 INFO     [watchfiles.main:308] 1 change detected
+[stderr] 2026-06-04 08:38:56 INFO     [watchfiles.main:308] 1 change detected
