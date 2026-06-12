@@ -2,7 +2,7 @@
 
 One Claude Code skill that teaches the agent to write idiomatic BAML. It auto-triggers when Claude opens a `.baml` file or is asked "how do I install / use BAML?".
 
-The premise: **BAML is two things in one file** — a statically-typed, expression-oriented *language* (basically TypeScript with `snake_case` methods and `name type` class fields: types, classes, generics, closures, optional chaining, control flow, `throws`/`catch`/`catch_all`, a stdlib) and a small declarative *DSL* for LLM calls (`client<llm>`, `function … { client:  prompt: }`, `generator`, `test`) that desugars into that language.
+The premise: **BAML is two things in one file** — a statically-typed, expression-oriented *language* (basically TypeScript with `snake_case` methods and `name: type,` class fields: types, classes, generics, closures, optional chaining, control flow, `throws`/`catch`/`catch_all`, a stdlib) and a small declarative *DSL* for LLM calls (`client<llm>`, `function … { client:  prompt: }`, `generator`, `test`) that desugars into that language.
 
 The skill is deliberately minimal and **describe-first**: it names the handful of traps that trip up agents, shows one minimum-viable LLM function + test, and otherwise points the agent at `baml describe` for every stdlib name, type, and signature rather than padding the prompt with examples it would guess wrong. The CLI is the reference. This is the arena-winning `micro-describe` variant.
 
@@ -24,7 +24,7 @@ The skill auto-loads in any Claude Code session.
 A single `core` skill, minimal and describe-first:
 
 - Install + the `baml describe / run / test / fmt` agent loop — `baml describe <name>` is the reference for any module/type/method/signature
-- **The five fatal traps** the language model otherwise gets wrong: `name type` fields (no colon/comma), trailing-expression blocks + `-> null` unit, `for (let x in xs)` over values, no implicit string coercion / panicking index / `.collect()` after `.filter`, type-only non-exhaustive `catch`
+- **The five fatal traps** the language model otherwise gets wrong: `name: type,` fields (`baml fmt` writes the colon + comma), trailing-expression blocks + `-> null` unit, `for (let x in xs)` over values, no implicit string coercion / panicking index / `.collect()` after `.filter`, type-only non-exhaustive `catch`
 - One **minimum-viable LLM function + test** — `client:`/`prompt:` blocks with `{{ ctx.output_format }}`, the return type as schema, the `name$parse` companion, `testset`/`test` with `assert.*`
 - The throughline: **anything not shown → `baml describe <name>`; check it with `baml run -e`**
 
