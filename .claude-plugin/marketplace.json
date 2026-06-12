@@ -9,7 +9,7 @@
     {
       "name": "baml",
       "source": "./plugins/baml",
-      "description": "Four example-dense skills: core (the typed language + the LLM DSL that desugars into it), bridges (calling BAML from a host language), serving (HTTP servers / long-lived processes around BAML), and testing (testset/test + token-free LLM testing via Fn$parse). Examples verified against the shipped CLI; defers to `baml describe` for everything else. Auto-triggers when Claude opens a .baml file or is asked how to install / use BAML."
+      "description": "One minimal, describe-first skill: the typed, expression-oriented language plus the LLM DSL that desugars into it. Names the few fatal traps and defers to `baml describe` for everything else rather than guessing. Auto-triggers when Claude opens a .baml file or is asked how to install / use BAML."
     }
   ]
 }
