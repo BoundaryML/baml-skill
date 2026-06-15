@@ -9,7 +9,7 @@
     {
       "name": "baml",
       "source": "./plugins/baml",
-      "description": "One minimal, describe-first skill: the typed, expression-oriented language plus the LLM DSL that desugars into it. Names the few fatal traps and defers to `baml describe` for everything else rather than guessing. Auto-triggers when Claude opens a .baml file or is asked how to install / use BAML."
+      "description": "Two describe-first skills sharing the same content — the typed, expression-oriented language plus the LLM DSL that desugars into it. `core` discovers each name as needed; `overview` leads with `baml describe baml` to dump the whole stdlib first. Both name the few fatal traps and defer to `baml describe` for everything else rather than guessing. Auto-triggers when Claude opens a .baml file or is asked how to install / use BAML."
     }
   ]
 }

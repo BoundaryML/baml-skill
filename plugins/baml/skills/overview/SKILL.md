@@ -1,23 +1,32 @@
 ---
-name: core
-description: Minimal BAML skill. BAML is a statically-typed, expression-oriented language with first-class LLM functions — TypeScript-like, snake_case methods. The CLI is the reference: run `baml describe` for every name and `baml run -e` to check everything. Never guess stdlib.
+name: overview
+description: BAML, full-picture-first. Same language as the core skill — a statically-typed, expression-oriented language (TypeScript-like, snake_case methods) with first-class LLM functions — but start by running `baml describe baml` to dump the ENTIRE stdlib (every namespace, type, and function) in one listing, then drill into any name with `baml describe <name>`. The CLI is the reference; never guess stdlib.
 ---
 
-# baml — describe-first
+# baml — full picture first
 
-BAML ≈ TypeScript, expression-oriented, snake_case methods, with LLM functions (`client:` + `prompt:` blocks that desugar to plain functions). **The CLI is the documentation. Discover, don't guess:**
+BAML ≈ TypeScript, expression-oriented, snake_case methods, with LLM functions (`client:` + `prompt:` blocks that desugar to plain functions). **The CLI is the documentation. Get the whole map up front, then drill in:**
 
 ```bash
 brew install baml                # binary: `baml-cli` (alias `baml`)
 
+baml describe baml               # ← THE FULL PICTURE: every namespace, type & function in
+                                 #   the stdlib in one listing (csv, env, errors, fs, http,
+                                 #   json, math, net, time, toml, yaml, …) — read this first
+baml describe baml.json          # drill into a namespace — its types + function signatures
+baml describe Array              # drill into a type — full method list + docs
+                                 #   (Array, String, Map, Int, Float, baml.fs, baml.errors, …)
+
 baml init                        # new project (baml.toml + baml_src/)
-baml describe baml.json          # ← THE reference for any module/type/method/signature
-baml describe Array              #   (Array, String, Map, Int, Float, baml.fs, baml.errors, ...)
 baml check                       # compile-check the project — errors + warnings
 baml run -e 'expr'               # eval an expression — fast feedback, doubles as a syntax check
 baml test --list && baml test -i "suite::case"
 baml fmt baml_src/main.baml      # run before finishing
 ```
+
+`baml describe baml` is the entry point: one command prints the complete stdlib
+surface so you know what exists before reaching for it. When a name looks useful,
+`baml describe <that name>` for its signatures. Anything you can't see → describe it; don't guess.
 
 ## The five fatal traps (everything else, `baml describe` it)
 
@@ -49,4 +58,4 @@ test "parses" {
 
 The return type is the schema; prompts are `#"..."#` block strings with Jinja inside `{{ }}`. Every LLM function gets a `name$parse(raw)` companion for parsing captured replies in tests.
 
-**Workflow: sketch → `baml run -e` / `baml check` constantly → `baml describe` anything unfamiliar → `baml test` → `baml fmt`.**
+**Workflow: `baml describe baml` for the full picture → sketch → `baml run -e` / `baml check` constantly → `baml describe <name>` for any signature → `baml test` → `baml fmt`.**
