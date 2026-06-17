@@ -28,6 +28,8 @@ baml fmt baml_src/main.baml      # run before finishing
 surface so you know what exists before reaching for it. When a name looks useful,
 `baml describe <that name>` for its signatures. Anything you can't see → describe it; don't guess.
 
+Pure (non-LLM) functions need no test block, testset wrapper, or client config — verify them instantly with `baml run -e 'add(2, 3)'`. This is the fastest feedback path for arithmetic, string-processing, and utility functions.
+
 ## The five fatal traps (everything else, `baml describe` it)
 
 1. Class fields are `name: type,` — `baml fmt` writes the colon + comma (bare `name type` also parses, but fmt normalizes). Construction matches: `Point { x: 1 }`. Methods take explicit `self`; factories don't.
