@@ -13,6 +13,8 @@ brew install baml                # binary: `baml-cli` (alias `baml`)
 baml init                        # new project (baml.toml + baml_src/)
 baml describe baml.json          # ← THE reference for any module/type/method/signature
 baml describe Array              #   (Array, String, Map, Int, Float, baml.fs, baml.errors, ...)
+                                 #   If output ends with "… N more lines", re-run with
+                                 #   `--budget <higher-number>` to see the rest.
 baml check                       # compile-check the project — errors + warnings
 baml run -e 'expr'               # eval an expression — fast feedback, doubles as a syntax check
 baml test --list && baml test -i "suite::case"

@@ -16,6 +16,8 @@ baml describe baml               # ← THE FULL PICTURE: every namespace, type &
 baml describe baml.json          # drill into a namespace — its types + function signatures
 baml describe Array              # drill into a type — full method list + docs
                                  #   (Array, String, Map, Int, Float, baml.fs, baml.errors, …)
+                                 #   If output ends with "… N more lines", re-run with
+                                 #   `--budget <higher-number>` to see the rest.
 
 baml init                        # new project (baml.toml + baml_src/)
 baml check                       # compile-check the project — errors + warnings
