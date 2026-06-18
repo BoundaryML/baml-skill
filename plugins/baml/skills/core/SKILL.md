@@ -29,6 +29,14 @@ Pure (non-LLM) functions need no test block, testset wrapper, or client config �
 4. No implicit string coercion (`"n=" + 5` won't compile — `baml.unstable.string(5)`); indexing panics out of bounds (use `.at(i)`/`.get(k)` → `T?`); closures are `(x: T) -> R { ... }` (the `=>` arrow is match-only — `.filter`/`.map` return arrays directly, no `.collect()`); map keys must be `string`.
 5. `catch` arms are type-only and non-exhaustive: `f(x) catch (e) { BadInput => fallback }`; `throws T` is part of the signature; panics aren't catchable.
 
+### Gotchas (easy-to-miss silent pitfalls)
+
+- **Closures:** outside obvious inference contexts, closures need typed params **and** an explicit return annotation: `(x: int) -> int { x + 1 }`.
+- **`??` precedence:** `??` binds looser than `+`; `m.get(w) ?? 0 + 1` parses as `m.get(w) ?? (0 + 1)`. Use parentheses: `(m.get(w) ?? 0) + 1`.
+- **`catch` type paths:** `catch` arms must use fully-qualified error names (for example `baml.json.JsonParseError`, not `JsonParseError`).
+- **`reduce` under `baml run -e`:** inline-closure inference can fail; if it does, move the reducer into a named function in `baml_src` and call that function from `run -e`.
+- **`Array.insert` argument order:** it is `insert(item, idx)`, not `insert(idx, item)` like many other languages.
+
 ## LLM functions + tests, minimum viable
 
 ```baml
