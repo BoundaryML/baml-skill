@@ -44,6 +44,9 @@ Pure (non-LLM) functions need no test block, testset wrapper, or client config â
 
 - **Closures:** outside obvious inference contexts, closures need typed params **and** an explicit return annotation: `(x: int) -> int { x + 1 }`.
 - **`??` precedence:** `??` binds looser than `+`; `m.get(w) ?? 0 + 1` parses as `m.get(w) ?? (0 + 1)`. Use parentheses: `(m.get(w) ?? 0) + 1`.
+- **In-place array writes:** mutate arrays with index assignment (`arr[i] = v`); there is no `Array.set` method.
+- **`while` loops exist:** `while (cond) { ... }` is valid and works for imperative loops.
+- **No `mut` keyword:** `let` bindings are reassignable by default, so `let mut i = 0` is a parse error.
 - **`catch` type paths:** `catch` arms must use fully-qualified error names (for example `baml.json.JsonParseError`, not `JsonParseError`).
 - **`reduce` under `baml run -e`:** inline-closure inference can fail; if it does, move the reducer into a named function in `baml_src` and call that function from `run -e`.
 - **`Array.insert` argument order:** it is `insert(item, idx)`, not `insert(idx, item)` like many other languages.
