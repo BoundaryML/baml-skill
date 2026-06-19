@@ -29,7 +29,7 @@ Pure (non-LLM) functions need no test block, testset wrapper, or client config �
 2. Last expression in a block is its value (Rust-style). Early exit: `return x;` with trailing `;`. No-value functions: `-> null` + trailing `null`.
 3. `for (let x in xs)` iterates VALUES and requires `let`. `if`/`match`/blocks are expressions; `match (v) { 0 => "a", _ => "b" }`.
 4. No implicit string coercion (`"n=" + 5` won't compile — `baml.unstable.string(5)`); indexing panics out of bounds (use `.at(i)`/`.get(k)` → `T?`); closures are `(x: T) -> R { ... }` (the `=>` arrow is match-only — `.filter`/`.map` return arrays directly, no `.collect()`); map keys must be `string`.
-5. `catch` arms are type-only and non-exhaustive: `f(x) catch (e) { BadInput => fallback }`; `throws T` is part of the signature; panics aren't catchable.
+5. `catch` arms are type-only and non-exhaustive: `f(x) catch (e) { BadInput => fallback }`; callee `throws` propagate implicitly unless caught, so callers do not need to re-declare `throws T` unless they want static enforcement at their own signature boundary; panics aren't catchable. (When available, `int.try_parse(s) -> int | null` is the non-throwing alternative.)
 
 ### Gotchas (easy-to-miss silent pitfalls)
 
