@@ -21,6 +21,8 @@ baml test --list && baml test -i "suite::case"
 baml fmt baml_src/main.baml      # run before finishing
 ```
 
+For builtin/stdlib functions, `baml describe <function-name>` prints the **full source body** (not just the signature) — the fastest way to verify behavior, and the primary discovery path for functions in embedded builtins like `assert` that have no on-disk file to read (e.g. `baml describe assert.equal` dumps the whole `<builtin>/assert/assert.baml` definition).
+
 Pure (non-LLM) functions need no test block, testset wrapper, or client config — verify them instantly with `baml run -e 'add(2, 3)'`. This is the fastest feedback path for arithmetic, string-processing, and utility functions.
 
 ## The five fatal traps (everything else, `baml describe` it)
