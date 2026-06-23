@@ -13,6 +13,8 @@ brew install baml                # binary: `baml-cli` (alias `baml`)
 baml init                        # new project (baml.toml + baml_src/)
 baml describe baml.json          # ← THE reference for any module/type/method/signature
 baml describe Array              #   (Array, String, Map, Int, Float, baml.fs, baml.errors, ...)
+                                 #   Array/Map are reference types: index/key-assignment mutations
+                                 #   inside a function are visible to the caller.
                                  #   If output ends with "… N more lines", re-run with
                                  #   `--budget <higher-number>` to see the rest.
 baml check                       # compile-check the project — errors + warnings
@@ -37,6 +39,7 @@ Pure (non-LLM) functions need no test block, testset wrapper, or client config �
 
 - **Closures:** outside obvious inference contexts, closures need typed params **and** an explicit return annotation: `(x: int) -> int { x + 1 }`.
 - **`??` precedence:** `??` binds looser than `+`; `m.get(w) ?? 0 + 1` parses as `m.get(w) ?? (0 + 1)`. Use parentheses: `(m.get(w) ?? 0) + 1`.
+- **Array/Map reference semantics:** arrays and maps are reference types; index/key-assignment mutations inside a function are visible to the caller.
 - **In-place array writes:** mutate arrays with index assignment (`arr[i] = v`); there is no `Array.set` method.
 - **`while` loops exist:** `while (cond) { ... }` is valid and works for imperative loops.
 - **No `mut` keyword:** `let` bindings are reassignable by default, so `let mut i = 0` is a parse error.
