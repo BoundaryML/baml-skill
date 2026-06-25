@@ -69,6 +69,7 @@ When happy, bump `version` in `plugins/baml/.claude-plugin/plugin.json` and comm
 - **0.7.x** — split into four skills (core, bridges, serving, testing), each verified against the shipped CLI.
 - **0.8.x** — collapsed back to one minimal, describe-first `core` skill; the arena-winning `micro-describe` variant.
 - **0.9.x** — added the `overview` skill: the same content, full-picture-first via `baml describe baml`; corrected the closures/`.collect()` trap against baml-cli 0.12.1 (current).
+- **0.10.x** — migrated to the canary syntax: backtick prompt strings with `${...}` interpolation (no more `#"…"#`), `.to_string()`, and an interface example; reworked the `catch`/`catch_all` guidance (specific vs. exhaustive). Every example verified against the canary `baml-cli`.
 - **1.0.0** — stable.
 
 ## License
