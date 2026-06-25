@@ -45,6 +45,7 @@ Mostly it behaves like JavaScript/TypeScript, with very similar syntax — but B
 - **Tests:** lone `test "name" { ... }` (no wrapper); `testset` only GROUPS. Asserts (only 4): `assert.equal`/`is_true`/`not_null`/`contains`. `assert.equal` compares structurally; `baml.deep_equals(a, b)` is the bool form. Last assert: no trailing `;`.
 
 For anything not shown (signatures, niche stdlib, advanced features), run **`baml describe <name>`** — the CLI is the docs; never guess the stdlib.
+Use `baml describe baml` when you want the full stdlib map first, then drill into specific names.
 
 ## Example 1 — LLM DSL + glue (schema, attributes, client, backtick prompt, post-processing)
 
