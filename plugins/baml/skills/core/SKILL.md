@@ -1,7 +1,7 @@
 ---
-name: core
-description: Minimal BAML skill. BAML is a statically-typed, expression-oriented language with first-class LLM functions — TypeScript-like, snake_case methods, backtick strings with ${...} interpolation. The CLI is the reference: run `baml describe` for every name and `baml run -e` to check everything. Never guess stdlib.
----
+
+## name: core
+description: Minimal BAML skill. BAML is a statically-typed, expression-oriented language with first-class LLM functions — TypeScript-like, snake_case methods, backtick strings with ${...} interpolation. The CLI is the reference: run `baml describe` for every name and `baml run -e` if you need to check things quickly.
 
 # baml — describe-first
 
@@ -19,32 +19,42 @@ baml describe Array              #   (Array, String, Map, assert, match, pattern
 baml check                       # compile-check the project
 baml run -e 'expr'               # eval an expression — fast feedback + syntax check
 baml test --list && baml test    # run every test/testset block
-baml fmt baml_src/main.baml      # canonicalize (still catching up to backtick prompts)
+baml fmt baml_src/main.baml      # canonicalize the project's formatting
 ```
 
 `baml describe <name>` prints the **full source body** of stdlib functions — the fastest way to verify behavior, and the only path for embedded builtins like `assert` (no on-disk file). Pure functions need no test/client — check them with `baml run -e 'add(2, 3)'`.
 
 Mostly it behaves like JavaScript/TypeScript, with very similar syntax — but BAML is more sound/strict.
 
-## Best practices (the idiomatic path)
+## Best practices and info
 
 - **LLM function = typed return.** The RETURN TYPE *is* the schema the model must produce (`class`, `enum`, literal union, `string[]`, `T?`). Structured output is just a typed value — hand it to ordinary code.
-- **Prompts are backtick strings with `${...}` interpolation.** Write `prompt:` `` `… ${arg} …` ``, and **always inject `${ctx.output_format}`** for a structured return. Escape with `` \` `` / `\${`; nest with extra backticks.
+- **Prompts are backtick strings with `${...}` interpolation.** Write `prompt:` ``… ${arg} …``, and **always inject `${ctx.output_format}`** for a structured return. Escape with `\`` / `\${`; nest with extra backticks.
 - **Shape the schema with field attributes.** `@description("…")` adds a `///` hint the model sees in `${ctx.output_format}`; `@alias("name")` renames the emitted JSON key. Chain: `tags: string[] @alias("labels") @description("…")`.
-- **Test the pure code, not the model.** Unit-test orchestration/post-processing on literal data with `assert.*`. Calling an LLM function in a `test` makes a real request — not an offline test. (`f$parse`/`f$render_prompt`/`f$build_request` exist for debugging.)
-- **Build strings with interpolation, not coercion.** `` `score=${n}` `` stringifies any value (implicit `.to_string()`); call `.to_string()` for the string alone. `+` needs both sides already strings (`"n=" + 5` won't compile).
-- **`catch` for some, `catch_all` for all.** `expr catch (e) { baml.errors.ParseError => fallback }` handles a *specific* error; `expr catch_all (e) { _ => fallback }` is *exhaustive* — for a workflow top / entrypoint. Errors propagate implicitly; callers needn't re-declare.
+- **Test the pure code, not the model.** Unit-test orchestration/post-processing on literal data with `assert.`*. Calling an LLM function in a `test` makes a real request — not an offline test. (`f$parse`/`f$render_prompt`/`f$build_request` exist for debugging.)
+- **Build strings with interpolation, not coercion.** ``score=${n}`` stringifies any value (implicit `.to_string()`); call `.to_string()` for the string alone. `+` needs both sides already strings (`"n=" + 5` won't compile).
+- `**catch` for some, `catch_all` for all.** `expr catch (e) { baml.errors.ParseError => fallback }` handles a *specific* error; `expr catch_all (e) { _ => fallback }` is *exhaustive* — for a workflow top / entrypoint. Errors propagate implicitly; callers needn't re-declare.
 - **Interfaces = shared behavior + dynamic dispatch.** `interface I { function m(self) -> T }` (methods may have default bodies); a class opts in via `implements I { … }`; a value typed `I` (or `I[]`) dispatches to the implementor at runtime.
 - **Pattern matching.** `match (v) { … }` over values/types; arms are `pattern => expr` — literals, `let x: T` (bind + narrow), class destructure `T { f: let y }`, or-patterns `A | B`, guards `… if cond`, `_`; must be exhaustive. Also `v is T` → bool (narrows) and `if let x: T = v { … } else { … }`. `baml describe patterns`.
 - **Concurrency = green threads.** `spawn { … }` launches a background task, `await` collects it, `baml.future.all(list)` awaits many — fan out independent LLM/HTTP calls. `baml describe spawn`.
 - **Call BAML from Python / TS.** Declare a `[generator.<name>]` in `baml.toml`, run `baml generate`, then import the typed `baml_sdk`. Install + usage: `baml describe python` / `baml describe typescript` / `baml describe baml_sdk`.
 - **Safe access over indexing.** Subscript panics on a missing index/key; use `.at(i)`/`.get(k)` (→ `T?`), reach through with `?.`, default with `??` (parenthesize: `(m.get(k) ?? 0) + 1`).
 - **Stdlib methods are snake_case, called on a value.** Some return new, some mutate in place, a few do both (`sort_by_key` sorts the receiver *and* returns it) — to read the docs, `baml describe <word/type/identifier/keyword/etc>`.
-- **Class fields `name: type,`; construct `Type { field: val }`.** Methods take a bare `self`; factories are free functions. Enums: `enum E { A, B }`, access `E.A`.
+- **Class fields `name: type,`; construct `Type { field: val }`.** Methods take a bare `self`; factories are free functions. **Fields are mutable** (like TS): `obj.field = v` and `obj.field += n` work, and a `self` method can mutate in place — a side-effect method returns `void`. There's **no struct-update/spread** syntax; reconstruct or mutate. **Empty classes are legal** (`class Marker {}`) — handy as union variants. **Enums are plain variants — no methods, no associated data** (`E.A.foo()` won't compile); put behavior in free functions that `match`. `enum E { A, B }`, access `E.A`.
 - **Blocks are expressions** — last expression is the value (no `;`); `return x;` for early exit; `-> null` for unit. `for (let x in xs)` iterates VALUES. Closures `(x) -> { ... }` infer param/return from context (annotate `(x: T) -> R` only when ambiguous; the `->` is required). `.map`/`.filter` return arrays directly (no `.collect()`). Empty map needs a type: `let m: map<string, int> = {};`.
+- **No ternary — `if/else` is the expression.** There's no `cond ? a : b`; `if (cond) { a } else { b }` *is* an expression that returns a value, so assign it directly: `let label = if (x > 3) { "big" } else { "small" };`. Each branch is a block whose last expression is its value (no `return`). Chain with `else if`, and pair with `if let PATTERN = expr { … } else { … }` for bind-and-narrow.
+- **Arrays have a JS-like method set** — `map`/`filter`/`filter_map`/`reduce`/`find`/`some`/`every`/`flat_map`/`slice`/`concat`/`join`/`includes`/length(), plus in-place `push`/`pop`/`shift`/`unshift`/`sort_by`/`sort_by_key`. Most take closures that can `throws`. `baml describe Array` gives more info.
+- Local let bindings are reassignable (x = x + 1) — no mut keyword (it's TS let, not Rust); there's no const either.
+- **Where it diverges from TS (the silent traps):** arithmetic is *type-driven*, not TS-style. `int / int` is **truncating integer division** (`285 / 100 == 2`, NOT `2.85`) and `%` is the remainder (`285 % 100 == 85`); this compiles fine and just gives a quietly-wrong number, so it's the highest-value gotcha. Mix in a float to get float division (`285 / 100.0 == 2.85`, `285.0 / 100 == 2.85`); any mixed `int`/`float` op promotes to `float` (`5 + 2.0 == 7.0`). There is **no `.to_float()`** — convert an int with `n * 1.0` (or divide by a float). An `int` result does **not** auto-coerce to `float` on assignment (`let x: float = 285 / 100` is a compile error). `+` is **numeric-only**: string concat needs both sides already `string` (`"n=" + 5` won't compile — use `${...}` interpolation). Comparisons (`==`, `<`, …, structural `==`) and `&&`/`||`/`!` are TS-like.
 - **Tests:** lone `test "name" { ... }` (no wrapper); `testset` only GROUPS. Asserts (only 4): `assert.equal`/`is_true`/`not_null`/`contains`. `assert.equal` compares structurally; `baml.deep_equals(a, b)` is the bool form. Last assert: no trailing `;`.
+- **Namespaces =** `ns_*` **directories, no imports.** A folder `ns_<name>/` under `baml_src/` puts its files in namespace `<name>`; files in `baml_src/` itself are the `root` namespace (nesting stacks — `ns_a/ns_b/` → `root.a.b`; non`ns_` folders don't namespace). Same namespace = same scope: files share definitions with no import. To reach *another* namespace, use the **absolute** path `root.<ns>.<name>` `root.llm.Response`) — a bare `Response` from outside is rejected `did you mean root.Response?`). Run a target by its namespace-relative path `baml run agent.main`), but `baml run -e` evaluates in the root scope, so reach in with the absolute form: `baml run -e 'root.agent.main()'`. It's more idiomatic to keep namespaces as flat as possible, like Go packages.
+- Run `baml fmt` when you're done with a feature.
+- BAML functions/methods/types etc are accessible from other languages (python, typescript). Run `baml describe baml_sdk` for setup instructions. You might want to see if the current dir is near a python or TS project to setup the wiring for the user. The baml.toml toolchain version must match the installed python/ts baml package. Keep AI-related things and workflow logic in BAML as much as possible.
+- BAML has `log.info(..)` or `log.debug(..)`
+- `baml pack` can create a binary.
 
-For anything not shown (signatures, niche stdlib, advanced features), run **`baml describe <name>`** — the CLI is the docs; never guess the stdlib.
+
+For anything not shown (signatures, niche stdlib, advanced features), run `**baml describe <name>`** — the CLI is the docs; never guess the stdlib.
 
 ## Example 1 — LLM DSL + glue (schema, attributes, client, backtick prompt, post-processing)
 
@@ -91,7 +101,7 @@ test "post-process a literal Invoice — no model call" {
 }
 ```
 
-## Example 2 — the language (methods, interpolation, closures, maps, json, errors)
+## Example 2 — the language (methods, interpolation, closures, maps, json, errors). Mutations work like Typescript
 
 ```baml
 // BAML is a real language — no LLM here.
@@ -103,6 +113,8 @@ class User {
     score: int,
     // method (bare self) + ${} interpolation (implicit .to_string() on the int)
     function label(self) -> string { `${self.name.to_upper_case()}:${self.score}` }
+    // fields are MUTABLE like TS: assign / += on self in place; a side-effect method returns void
+    function celebrate(self) -> void { self.score += 100 }
 }
 
 function make_user(name: string, score: int) -> User { User { name: name, tier: Tier.Pro, score: score } }
@@ -126,8 +138,13 @@ function safe_parse(s: string) -> int { baml.Int.parse(s) catch (e) { baml.error
 
 test "lang" {
     let us = [make_user("ada", 90), make_user("bo", 30)];
+    log.info(us);
     assert.equal(top_label(us), "ADA:90");
     assert.equal((tier_counts(us).get("Pro") ?? 0), 2);
+    let kit = make_user("kit", 5);
+    kit.celebrate();            // mutate in place
+    kit.tier = Tier.Free;       // direct field assignment — no struct-update syntax
+    assert.equal(kit.score, 105);
     assert.equal(roundtrip(make_user("zoe", 7)).name, "zoe");
     assert.equal(safe_parse("42"), 42);
     assert.equal(safe_parse("x"), -1)
@@ -224,3 +241,5 @@ function fetch_all(urls: string[]) -> string[] {
 ```
 
 **Workflow: sketch → `baml run -e` / `baml check` constantly → `baml describe` anything unfamiliar → `baml test`.**
+
+For now, use `bamlv2` in place of `baml`, since we have our local build of baml running.
