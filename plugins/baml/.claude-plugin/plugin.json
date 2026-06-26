@@ -1,7 +1,7 @@
 {
   "name": "baml",
-  "version": "0.10.0",
-  "description": "Teaches Claude Code to write idiomatic BAML (the baml_language rewrite). A describe-first `core` skill: discover each stdlib name as needed via `baml describe`. BAML is a statically-typed, expression-oriented language (basically TypeScript with snake_case methods and `name: type,` fields) with first-class LLM functions, backtick strings + `${...}` interpolation, `.to_string()`, and interfaces. The CLI is the reference — the skill names the key best practices and otherwise defers to `baml describe` for every stdlib name, type, and signature rather than guessing. The arena-winning micro-describe variant.",
+  "version": "0.10.1",
+  "description": "Teaches Claude Code to write idiomatic BAML (the baml_language rewrite). A describe-first `core` skill: discover each stdlib name as needed via `baml describe`. BAML is a statically-typed, expression-oriented language (basically TypeScript with snake_case methods and `name: type,` fields) with first-class LLM functions, backtick strings + `${...}` interpolation, `.to_string()`, `.to_fixed(digits?)` with JavaScript parity, and interfaces. The CLI is the reference — the skill names the key best practices and otherwise defers to `baml describe` for every stdlib name, type, and signature rather than guessing. The arena-winning micro-describe variant.",
   "author": {
     "name": "BoundaryML",
     "url": "https://github.com/BoundaryML"

@@ -70,6 +70,7 @@ When happy, bump `version` in `plugins/baml/.claude-plugin/plugin.json` and comm
 - **0.8.x** — collapsed back to one minimal, describe-first `core` skill; the arena-winning `micro-describe` variant.
 - **0.9.x** — added the `overview` skill: the same content, full-picture-first via `baml describe baml`; corrected the closures/`.collect()` trap against baml-cli 0.12.1 (current).
 - **0.10.x** — migrated to the canary syntax: backtick prompt strings with `${...}` interpolation (no more `#"…"#`), `.to_string()`, and an interface example; reworked the `catch`/`catch_all` guidance (specific vs. exhaustive). Every example verified against the canary `baml-cli`.
+- **0.10.1** — documented `float.to_fixed(digits?)` with JavaScript `Number.prototype.toFixed()` parity: range `[0, 100]`, default `0`, IEEE-754 artifact behavior, large-number fallback at `abs(x) >= 1e21`, negative-zero handling, and int coercion examples.
 - **1.0.0** — stable.
 
 ## License

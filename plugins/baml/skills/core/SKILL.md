@@ -1,11 +1,11 @@
 ---
 name: core
-description: Minimal BAML skill. BAML is a statically-typed, expression-oriented language with first-class LLM functions — TypeScript-like, snake_case methods, backtick strings with ${...} interpolation. The CLI is the reference: run `baml describe` for every name and `baml run -e` to check everything. Never guess stdlib.
+description: Minimal BAML skill. BAML is a statically-typed, expression-oriented language with first-class LLM functions — TypeScript-like, snake_case methods, backtick strings with ${...} interpolation, and numeric formatting via `.to_fixed(digits?)`. The CLI is the reference: run `baml describe` for every name and `baml run -e` to check everything. Never guess stdlib.
 ---
 
 # baml — describe-first
 
-**What BAML is:** one file, two things. A statically-typed, expression-oriented *language* — TypeScript with `snake_case` methods, `name: type,` fields, enums, interfaces, generics, closures, optional chaining, backtick strings with `${...}` interpolation, `.to_string()` on any value, a real stdlib. And a declarative *DSL* for LLM calls (`function … { client: prompt: }`, `test`) that desugars into it, so a model's structured output is just a typed return value.
+**What BAML is:** one file, two things. A statically-typed, expression-oriented *language* — TypeScript with `snake_case` methods, `name: type,` fields, enums, interfaces, generics, closures, optional chaining, backtick strings with `${...}` interpolation, `.to_string()` on any value, `.to_fixed(digits?)` for JS-parity numeric formatting, and a real stdlib. And a declarative *DSL* for LLM calls (`function … { client: prompt: }`, `test`) that desugars into it, so a model's structured output is just a typed return value.
 
 **The CLI is the documentation. Discover, don't guess:**
 
@@ -15,6 +15,7 @@ brew install baml                # CLI binary: `baml`
 baml init                        # new project (baml.toml + baml_src/)
 baml describe baml.json          # ← THE reference for any module/type/method/signature
 baml describe Array              #   (Array, String, Map, assert, match, patterns, spawn, python, ...)
+baml describe Float              #   inspect float methods like .to_fixed(digits?)
                                  #   ends with "… N more lines"? re-run with `--budget <N>`
 baml check                       # compile-check the project
 baml run -e 'expr'               # eval an expression — fast feedback + syntax check
@@ -32,7 +33,8 @@ Mostly it behaves like JavaScript/TypeScript, with very similar syntax — but B
 - **Prompts are backtick strings with `${...}` interpolation.** Write `prompt:` `` `… ${arg} …` ``, and **always inject `${ctx.output_format}`** for a structured return. Escape with `` \` `` / `\${`; nest with extra backticks.
 - **Shape the schema with field attributes.** `@description("…")` adds a `///` hint the model sees in `${ctx.output_format}`; `@alias("name")` renames the emitted JSON key. Chain: `tags: string[] @alias("labels") @description("…")`.
 - **Test the pure code, not the model.** Unit-test orchestration/post-processing on literal data with `assert.*`. Calling an LLM function in a `test` makes a real request — not an offline test. (`f$parse`/`f$render_prompt`/`f$build_request` exist for debugging.)
-- **Build strings with interpolation, not coercion.** `` `score=${n}` `` stringifies any value (implicit `.to_string()`); call `.to_string()` for the string alone. `+` needs both sides already strings (`"n=" + 5` won't compile).
+- **Build strings with interpolation, not coercion.** `` `score=${n}` `` stringifies any value (implicit `.to_string()`); call `.to_string()` for the string alone. Use `.to_fixed(digits?)` when precision matters (`price.to_fixed(2)`), since it returns a string with JS `toFixed` parity. `+` needs both sides already strings (`"n=" + 5` won't compile).
+- **Numeric precision in prompts: `float.to_fixed(digits?) -> string`.** Mirrors JavaScript `Number.prototype.toFixed()` exactly, including IEEE-754 artifacts and large-number fallback (`abs(x) >= 1e21` uses exponential notation). `digits` defaults to `0`, valid range is `[0, 100]`, and out-of-range is a runtime error: `to_fixed: digits must be in [0, 100], got <N>`. Negative zero rounds/prints like JS (`(-0.0).to_fixed(2)` -> `"0.00"`).
 - **`catch` for some, `catch_all` for all.** `expr catch (e) { baml.errors.ParseError => fallback }` handles a *specific* error; `expr catch_all (e) { _ => fallback }` is *exhaustive* — for a workflow top / entrypoint. Errors propagate implicitly; callers needn't re-declare.
 - **Interfaces = shared behavior + dynamic dispatch.** `interface I { function m(self) -> T }` (methods may have default bodies); a class opts in via `implements I { … }`; a value typed `I` (or `I[]`) dispatches to the implementor at runtime.
 - **Pattern matching.** `match (v) { … }` over values/types; arms are `pattern => expr` — literals, `let x: T` (bind + narrow), class destructure `T { f: let y }`, or-patterns `A | B`, guards `… if cond`, `_`; must be exhaustive. Also `v is T` → bool (narrows) and `if let x: T = v { … } else { … }`. `baml describe patterns`.
@@ -132,6 +134,46 @@ test "lang" {
     assert.equal(safe_parse("42"), 42);
     assert.equal(safe_parse("x"), -1)
 }
+```
+
+## Numeric formatting (`to_fixed`) — JavaScript parity
+
+```baml
+function render_metrics(score: float, price: float, ratio: float, dist: float) -> string {
+    `Confidence: ${score.to_fixed(2)} out of 1.0.
+Price: $${price.to_fixed(2)}
+Completion: ${ratio.to_fixed(1)}%
+Distance: ${dist.to_fixed(3)} km`
+}
+
+test "to_fixed basics + int coercion" {
+    assert.equal((3.14159).to_fixed(2), "3.14");
+    assert.equal((3.14159).to_fixed(), "3");
+    assert.equal((1.5).to_fixed(3), "1.500");
+    assert.equal((-0.0).to_fixed(2), "0.00");
+    assert.equal((9.99e20).to_fixed(2), "999000000000000000000.00");
+    assert.equal((1e21).to_fixed(2), "1e+21");
+    assert.equal((5).to_fixed(2), "5.00")
+}
+
+// JS-parity artifact checks (do NOT "fix" these):
+test "to_fixed IEEE-754 artifact parity" {
+    assert.equal((1.005).to_fixed(2), "1.00");
+    assert.equal((1.255).to_fixed(2), "1.25");
+    assert.equal((1.355).to_fixed(2), "1.35");
+    assert.equal((1.045).to_fixed(2), "1.04");
+    assert.equal((1.105).to_fixed(2), "1.10")
+}
+```
+
+Verify artifact parity against a real JS runtime:
+
+```bash
+node -e "console.log((1.005).toFixed(2))"   # 1.00
+node -e "console.log((1.255).toFixed(2))"   # 1.25
+node -e "console.log((1.355).toFixed(2))"   # 1.35
+node -e "console.log((1.045).toFixed(2))"   # 1.04
+node -e "console.log((1.105).toFixed(2))"   # 1.10
 ```
 
 ## Example 3 — interfaces (shared behavior, default method, dynamic dispatch)
