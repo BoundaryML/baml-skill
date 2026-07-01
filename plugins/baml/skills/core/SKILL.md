@@ -38,12 +38,13 @@ Mostly it behaves like JavaScript/TypeScript, with very similar syntax — but B
 - `**catch` for some, `catch_all` for all.** `expr catch (e) { baml.errors.ParseError => fallback }` handles a *specific* error; `expr catch_all (e) { _ => fallback }` is *exhaustive* — for a workflow top / entrypoint. Errors propagate implicitly; callers needn't re-declare. **Raise** with `throw baml.errors.InvalidArgument { message: "…" }` (error types are the builtin `baml.errors.*` classes — `InvalidArgument`/`ParseError`/`Io`/`Timeout`/…; `baml describe baml.errors`); annotate a fallible signature with `-> T throws ErrType`. Prefer a typed result **union** (`type R = Ok | Err`) over throwing for ordinary control flow.
 - **Interfaces = shared behavior + dynamic dispatch.** `interface I { function m(self) -> T }` (methods may have default bodies); a class opts in via `implements I { … }`; a value typed `I` (or `I[]`) dispatches to the implementor at runtime.
 - **Pattern matching.** `match (v) { … }` over values/types; arms are `pattern => expr` — literals, `let x: T` (bind + narrow), class destructure `T { f: let y }`, or-patterns `A | B`, guards `… if cond`, `_`; must be exhaustive. Also `v is T` → bool (narrows) and `if let x: T = v { … } else { … }`. `baml describe patterns`.
-- **Concurrency = green threads.** `spawn { … }` launches a background task, `await` collects it, `baml.future.all(list)` awaits many — fan out independent LLM/HTTP calls. `baml describe spawn`.
+- **Concurrency = green threads.** `spawn { … }` returns a `Future`; `await` collects it. Combine many with `baml.future.all` / `all_complete` / `race` / `any` (JS `Promise.*`). Configure a spawn with a `with` clause: `spawn with baml.spawn.options(group = g, cancel = tok, detach = true) { … }` — `baml.spawn.TaskGroup.new(n)` caps concurrency (excess spawns queue FIFO), a `baml.spawn.CancelToken` cancels cooperatively. `baml describe spawn` / `baml describe baml.future`.
+- **Resource safety — `defer`, `cleanup`, `catch (e, ctx)`.** `defer { … }` runs a block at scope exit, LIFO, on *every* path (return / throw / fall-through) — like Go. A class method named `function cleanup(self) -> void` is a **finalizer**: it runs at most once per instance whether you call it, `defer` it, or the GC reclaims it. `catch (e, ctx)` binds an **`ErrorContext`** alongside the error — an error thrown while handling another chains onto it, so `ctx.root_cause()` / `ctx.cause` walk back to the original failure and `ctx.to_string()` renders the whole chain (Python `__context__`-style). `while let PATTERN = expr { … }` loops until the pattern fails (e.g. draining a `T?`-returning `.pop()`).
 - **Call BAML from Python / TS.** Declare a `[generator.<name>]` in `baml.toml`, run `baml generate`, then import the typed `baml_sdk`. Install + usage: `baml describe python` / `baml describe typescript` / `baml describe baml_sdk`.
 - **Safe access over indexing.** Subscript panics on a missing index/key; use `.at(i)`/`.get(k)` (→ `T?`), reach through with `?.`, default with `??` (parenthesize: `(m.get(k) ?? 0) + 1`).
 - **Stdlib methods are snake_case, called on a value.** Some return new, some mutate in place, a few do both (`sort_by_key` sorts the receiver *and* returns it) — to read the docs, `baml describe <word/type/identifier/keyword/etc>`.
 - **Class fields `name: type,`; construct `Type { field: val }`.** Methods take a bare `self`; factories are free functions. **Fields are mutable** (like TS): `obj.field = v` and `obj.field += n` work, and a `self` method can mutate in place — a side-effect method returns `void`. **Classes are reference types**: `find`/`at(i)`/subscript return a *live alias*, not a copy, so mutating the result mutates that element inside the array (`xs.find(p)?.n += 1` updates `xs`), and a class passed to a function can be mutated by the callee. There's **no struct-update/spread** syntax; reconstruct or mutate. **Empty classes are legal** (`class Marker {}`) — handy as union variants. **Enums are plain variants — no methods, no associated data** (`E.A.foo()` won't compile); put behavior in free functions that `match`. `enum E { A, B }`, access `E.A`.
-- **Blocks are expressions** — last expression is the value (no `;`); `return x;` for early exit; `-> null` for unit. `for (let x in xs)` iterates VALUES; `while (cond) { … }` loops. Closures `(x) -> { ... }` infer param/return from context (annotate `(x: T) -> R` only when ambiguous; the `->` is required). `.map`/`.filter` return arrays directly (no `.collect()`). Empty map needs a type: `let m: map<string, int> = {};`.
+- **Blocks are expressions** — last expression is the value (no `;`); `return x;` for early exit. A side-effect-only function's return type is `-> null` (canonical — `baml describe void`; `-> void` also works); its block's unit *value* is just bare `null` (writing `-> null` in *value* position is a parse error). `for (let x in xs)` iterates VALUES; `while (cond) { … }` loops. Closures `(x) -> { ... }` infer param/return from context (annotate `(x: T) -> R` only when ambiguous; the `->` is required). `.map`/`.filter` return arrays directly (no `.collect()`). Empty map needs a type: `let m: map<string, int> = {};`.
 - **No ternary — `if/else` is the expression.** There's no `cond ? a : b`; `if (cond) { a } else { b }` *is* an expression that returns a value, so assign it directly: `let label = if (x > 3) { "big" } else { "small" };`. Each branch is a block whose last expression is its value (no `return`). Chain with `else if`, and pair with `if let PATTERN = expr { … } else { … }` for bind-and-narrow.
 - **Arrays have a JS-like method set** — `map`/`filter`/`filter_map`/`reduce`/`find`/`some`/`every`/`flat_map`/`slice`/`concat`/`join`/`includes`/length(), plus in-place `push`/`pop`/`shift`/`unshift`/`sort_by`/`sort_by_key`. Most take closures that can `throws`. `baml describe Array` gives more info.
 - Local let bindings are reassignable (x = x + 1) — no mut keyword (it's TS let, not Rust); there's no const either.
@@ -234,6 +235,74 @@ test "patterns" {
     assert.equal(classify(-5), "neg");
     assert.equal(label(Circle { r: 1 }), "circle");
     assert.equal(label(Rect { w: 2, h: 4 }), "rect 2x4")
+}
+```
+
+## Example 5 — resource safety + structured concurrency (defer, cleanup, ErrorContext, spawn options, futures, while-let)
+
+```baml
+class DbConn {
+    log: string[],
+    // `cleanup` is a magic method (recognized by name): runs at most once per
+    // instance — whether called explicitly, deferred, or reclaimed by the GC.
+    function cleanup(self) -> void { self.log.push("closed") }
+}
+
+function use_conn() -> string[] {
+    let c = DbConn { log: [] };
+    {
+        defer { c.cleanup() }              // deferred blocks run LIFO at scope exit,
+        defer { c.log.push("commit") }     // on every path (return / throw / fall-through)
+        c.log.push("query")
+    }
+    c.log                                  // ["query", "commit", "closed"]
+}
+
+function fail_a() -> string { throw baml.errors.Io { message: "disk full" } }
+function fail_b() -> string { throw baml.errors.Timeout { message: "retry timed out" } }
+
+// `catch (e, ctx)` binds the error AND its ErrorContext; throwing while handling
+// chains the new error onto the one being handled, so root_cause() walks to the origin.
+function root_cause_demo() -> string {
+    fail_a() catch (e, ctx) {
+        _ => fail_b() catch (e2, ctx2) {
+            _ => match (ctx2.root_cause().error) {      // ctx.to_string() renders the full chain
+                let io: baml.errors.Io => io.message,   // "disk full" — the original cause
+                _ => "unknown",
+            }
+        }
+    }
+}
+
+// spawn returns a Future; baml.future.all/all_complete/race/any combine many (JS Promise.*).
+function concurrent_squares(xs: int[]) -> int {
+    let futures = xs.map((x) -> { spawn { x * x } });   // all run concurrently
+    let squares = await baml.future.all(futures);
+    squares.reduce((a, b) -> { a + b }, 0)
+}
+
+// Configure a spawn with `with baml.spawn.options(...)`: a TaskGroup caps concurrency
+// (excess spawns queue), a CancelToken cancels cooperatively, detach reparents the task.
+function rate_limited() -> int {
+    let g = baml.spawn.TaskGroup.new(2);
+    let a = spawn with baml.spawn.options(group = g) { 1 };
+    let b = spawn with baml.spawn.options(group = g) { 2 };
+    (await a) + (await b)
+}
+
+// while-let drains an optional-returning source; the loop exits when the pattern fails.
+function drain(stack: string[]) -> string {
+    let out = "";
+    while let item: string = stack.pop() { out = out + item; }
+    out
+}
+
+test "resources + concurrency" {
+    assert.equal(use_conn(), ["query", "commit", "closed"]);
+    assert.equal(root_cause_demo(), "disk full");
+    assert.equal(concurrent_squares([1, 2, 3]), 14);
+    assert.equal(rate_limited(), 3);
+    assert.equal(drain(["a", "b", "c"]), "cba")
 }
 ```
 
