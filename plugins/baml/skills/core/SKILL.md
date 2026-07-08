@@ -320,3 +320,14 @@ function fetch_all(urls: string[]) -> string[] {
 **Workflow: sketch → `baml run -e` / `baml check` constantly → `baml describe` anything unfamiliar → `baml test`.**
 
 Also just start writing some code. This is plenty of information already. Pretend you're writing some typescript but with this new syntax etc.
+
+## BAML workflow visualizer annotations
+Use '//#' to add comments that will show up in the BAML visualizer. Useful for annotating branches, general flow of the program. When you write baml code you should add some of these in general flow of the program. No need to annotate _everything_.
+e.g.
+```baml
+function hello() -> void {
+    //# Start loading data
+    ...
+    //# Iterate over things...
+    ...
+}
