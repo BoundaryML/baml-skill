@@ -15,6 +15,8 @@ brew install baml                # CLI binary: `baml`
 baml init                        # new project (baml.toml + baml_src/)
 baml describe baml.json          # ← THE reference for any module/type/method/signature/keyword
 baml describe Array --budget 120 #   (Array, String, Map, assert, match, patterns, spawn, python, ...)
+                                 #   Array/Map are reference types: index/key-assignment mutations
+                                 #   inside a function are visible to the caller.
                                  #   ends with "… N more lines"? re-run with `--budget <N>`
 baml check                       # compile-check the project
 baml run -e 'expr'               # eval an expression — fast feedback + syntax check
@@ -60,6 +62,18 @@ Mostly it behaves like JavaScript/TypeScript, with very similar syntax — but B
 
 
 For anything not shown (signatures, niche stdlib, advanced features), run `**baml describe <name>`** — the CLI is the docs; never guess the stdlib.
+
+### Gotchas (easy-to-miss silent pitfalls)
+
+- **Closures:** outside obvious inference contexts, closures need typed params **and** an explicit return annotation: `(x: int) -> int { x + 1 }`.
+- **`??` precedence:** `??` binds looser than `+`; `m.get(w) ?? 0 + 1` parses as `m.get(w) ?? (0 + 1)`. Use parentheses: `(m.get(w) ?? 0) + 1`.
+- **Array/Map reference semantics:** arrays and maps are reference types; index/key-assignment mutations inside a function are visible to the caller.
+- **In-place array writes:** mutate arrays with index assignment (`arr[i] = v`); there is no `Array.set` method.
+- **`while` loops exist:** `while (cond) { ... }` is valid and works for imperative loops.
+- **No `mut` keyword:** `let` bindings are reassignable by default, so `let mut i = 0` is a parse error.
+- **`catch` type paths:** `catch` arms must use fully-qualified error names (for example `baml.json.JsonParseError`, not `JsonParseError`).
+- **`reduce` under `baml run -e`:** inline-closure inference can fail; if it does, move the reducer into a named function in `baml_src` and call that function from `run -e`.
+- **`Array.insert` argument order:** it is `insert(item, idx)`, not `insert(idx, item)` like many other languages.
 
 ## Example 1 — LLM DSL + glue (schema, attributes, client, backtick prompt, post-processing)
 
