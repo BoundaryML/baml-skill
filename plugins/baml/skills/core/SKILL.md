@@ -37,6 +37,7 @@ Mostly it behaves like JavaScript/TypeScript, with very similar syntax — but B
 - **Build strings with interpolation, not coercion.** ``score=${n}`` stringifies any value (implicit `.to_string()`); call `.to_string()` for the string alone. `+` needs both sides already strings (`"n=" + 5` won't compile).
 - `**catch` for some, `catch_all` for all.** `expr catch (e) { baml.errors.ParseError => fallback }` handles a *specific* error; `expr catch_all (e) { _ => fallback }` is *exhaustive* — for a workflow top / entrypoint. Errors propagate implicitly; callers needn't re-declare. **Raise** with `throw baml.errors.InvalidArgument { message: "…" }` (error types are the builtin `baml.errors.*` classes — `InvalidArgument`/`ParseError`/`Io`/`Timeout`/…; `baml describe baml.errors`); annotate a fallible signature with `-> T throws ErrType`. Prefer a typed result **union** (`type R = Ok | Err`) over throwing for ordinary control flow.
 - **Interfaces = shared behavior + dynamic dispatch.** `interface I { function m(self) -> T }` (methods may have default bodies); a class opts in via `implements I { … }`; a value typed `I` (or `I[]`) dispatches to the implementor at runtime.
+- **Interface casts.** `value.as<I>` upcasts/projects to an implemented or required interface; it never downcasts. Downcast with a typed pattern: `match (value) { let x: T => …, _ => … }`. `baml describe as`.
 - **Pattern matching.** `match (v) { … }` over values/types; arms are `pattern => expr` — literals, `let x: T` (bind + narrow), class destructure `T { f: let y }`, or-patterns `A | B`, guards `… if cond`, `_`; must be exhaustive. Also `v is T` → bool (narrows) and `if let x: T = v { … } else { … }`. `baml describe patterns`.
 - **Concurrency = green threads.** `spawn { … }` returns a `Future`; `await` collects it. Combine many with `baml.future.all` / `all_complete` / `race` / `any` (JS `Promise.*`). Configure a spawn with a `with` clause: `spawn with baml.spawn.options(group = g, cancel = tok, detach = true) { … }` — `baml.spawn.TaskGroup.new(n)` caps concurrency (excess spawns queue FIFO), a `baml.spawn.CancelToken` cancels cooperatively. `baml describe spawn` / `baml describe baml.future`.
 - **Resource safety — `defer`, `cleanup`, `catch (e, ctx)`.** `defer { … }` runs a block at scope exit, LIFO, on *every* path (return / throw / fall-through) — like Go. A class method named `function cleanup(self) -> void` is a **finalizer**: it runs at most once per instance whether you call it, `defer` it, or the GC reclaims it. `catch (e, ctx)` binds an **`ErrorContext`** alongside the error — an error thrown while handling another chains onto it, so `ctx.root_cause()` / `ctx.cause` walk back to the original failure and `ctx.to_string()` renders the whole chain (Python `__context__`-style). `while let PATTERN = expr { … }` loops until the pattern fails (e.g. draining a `T?`-returning `.pop()`).
@@ -186,9 +187,15 @@ function chorus(animals: Animal[]) -> string {
     animals.map((a) -> { a.describe() }).join(" ")
 }
 
+function dog_name(a: Animal) -> string {
+    match (a) { let d: Dog => d.name, _ => "not a dog" }
+}
+
 test "interfaces" {
     let animals: Animal[] = [Dog { name: "Rex" }, Cat { indoor: true }];
-    assert.equal(chorus(animals), "woof! quiet meow")
+    assert.equal(chorus(animals), "woof! quiet meow");
+    assert.equal(Dog { name: "Rex" }.as<Animal>.sound(), "woof");
+    assert.equal(dog_name(animals[0]), "Rex")
 }
 ```
 
