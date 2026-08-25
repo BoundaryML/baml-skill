@@ -14,11 +14,11 @@ brew install baml                # CLI binary: `baml`
 
 baml init                        # new project (baml.toml + baml_src/)
 baml help <command>              # CLI options and examples
-baml describe baml.json          # ← THE reference for any module/type/method/signature/keyword
+baml describe baml.json          # reference for any module/type/method/signature/keyword
 baml describe Array --budget 120 #   (Array, String, Map, assert, match, patterns, spawn, python, ...)
-                                 #   ends with "… N more lines"? re-run with `--budget <N>`
+                                 #   ends with "N more lines"? re-run with `--budget <N>`
 baml check                       # compile-check the project
-baml run -e 'expr'               # eval an expression — fast feedback + syntax check
+baml run -e 'expr'               # eval an expression; fast feedback + syntax check
 baml test --list && baml test    # run every test/testset block
 baml fmt baml_src/main.baml      # canonicalize the project's formatting
 ```
@@ -33,35 +33,36 @@ Mostly it behaves like JavaScript/TypeScript, with very similar syntax — but B
 
 - **LLM function = typed return.** The RETURN TYPE *is* the schema the model must produce (`class`, `enum`, literal union, `string[]`, `T?`). Structured output is just a typed value — hand it to ordinary code.
 - **Prompts are backtick strings with `${...}` interpolation.** Write `prompt:` ``… ${arg} …``, and **always inject `${ctx.output_format}`** for a structured return. Escape with `\`` / `\${`; nest with extra backticks.
-- **Clients are values, not config blocks.** `client Fast = openai.OpenAiClient.new(model = "…", api_key_env = "OPENAI_API_KEY");` — the old `client<llm> Name { provider: …, options: {…} }` block is **removed**. Anything implementing `ai.Client` works (`openai.OpenAiClient`, `anthropic.AnthropicClient`, …; note their `new` params differ — OpenAI takes `api_key_env`/`base_url_env`, Anthropic takes `max_tokens`). **Use `api_key_env = "NAME"`, not `api_key = env.NAME`** — `env.*` is read eagerly at engine init, so one unset var fails the entire project with an opaque `InitFailed(… BamlEnvGet …)` before any test runs; `api_key_env` resolves lazily at call time. Compose reliability by **wrapping**: `ai.clients.Retry.new(inner = c, max_attempts = 3)` and `ai.clients.RoundRobin.new(members = […])` have `.new`, but `ai.clients.Fallback { members: […] }` does **not** — construct it as a class literal. Then `client: Fast` in the function, or the shorthand `client: "openai/gpt-4o-mini"`. `baml describe ai.clients`.
+- **Clients are values, not config blocks.** `client Fast = openai.ResponsesClient.new(model = "…", api_key = env.OPENAI_API_KEY);` — the old `client<llm> Name { provider: …, options: {…} }` block is **removed**. Anything implementing `ai.Client` works (`openai.ResponsesClient`, `openai.ChatClient`, `anthropic.AnthropicClient`, …; constructor parameters differ by provider). `api_key` and `base_url` accept `ai.Credential`: a literal string, `null` for the provider default, or a late-bound `env.NAME` reference resolved at request time. Compose reliability by **wrapping**: `ai.clients.Retry.new(inner = c, max_attempts = 3)` and `ai.clients.RoundRobin.new(members = […])` have `.new`, but `ai.clients.Fallback { members: […] }` does **not** — construct it as a class literal. Then use `client: Fast` in the function, or the shorthand `client: "openai/gpt-4o-mini"`. `baml describe openai` / `baml describe ai.Credential` / `baml describe ai.clients`.
 - **Shape the schema with field attributes.** `@description("…")` adds a `///` hint the model sees in `${ctx.output_format}`; `@alias("name")` renames the emitted JSON key. Chain: `tags: string[] @alias("labels") @description("…")`.
 - **Test the pure code, not the model.** Unit-test orchestration/post-processing on literal data with `assert.`*. Calling an LLM function in a `test` makes a real request — not an offline test. (`f$parse`/`f$render_prompt`/`f$build_request` exist for debugging.)
 - **Build strings with interpolation, not coercion.** ``score=${n}`` stringifies any value (implicit `.to_string()`); call `.to_string()` for the string alone. `+` needs both sides already strings (`"n=" + 5` won't compile).
-- `**catch` for some, `catch_all` for all.** `expr catch (e) { baml.errors.ParseError => fallback }` handles a *specific* error; `expr catch_all (e) { _ => fallback }` is *exhaustive* — for a workflow top / entrypoint. Errors propagate implicitly; callers needn't re-declare. **Raise** with `throw baml.errors.InvalidArgument { message: "…" }` (error types are the builtin `baml.errors.*` classes — `InvalidArgument`/`ParseError`/`Io`/`Timeout`/…; `baml describe baml.errors`); annotate a fallible signature with `-> T throws ErrType`. Prefer a typed result **union** (`type R = Ok | Err`) over throwing for ordinary control flow.
-- **Interfaces = shared behavior + dynamic dispatch.** `interface I { function m(self) -> T throws never }` (methods may have default bodies); a class opts in via `implements I { … }`; a value typed `I` (or `I[]`) dispatches to the implementor at runtime. Interface methods **must** declare an explicit `throws` clause — `throws never` when the method can't fail, `throws SomeError` when it can (omitting it is an error: *interface method `m` must declare an explicit `throws` clause*). The `implements` block does **not** repeat the clause.
+- **`catch` for some, `catch_all` for all.** `expr catch (e) { baml.errors.ParseError => fallback }` handles a *specific* error; `expr catch_all (e) { _ => fallback }` is *exhaustive* — for a workflow top / entrypoint. Errors propagate implicitly; callers needn't re-declare. **Raise** with `throw baml.errors.InvalidArgument { message: "…" }` (error types are the builtin `baml.errors.*` classes — `InvalidArgument`/`ParseError`/`Io`/`Timeout`/…; `baml describe baml.errors`); annotate a fallible signature with `-> T throws ErrType`. Prefer a typed result **union** (`type R = Ok | Err`) over throwing for ordinary control flow.
+- **Interfaces = shared behavior + dynamic dispatch.** `interface I { function m(self) -> T }` (methods may have default bodies); a class opts in via `implements I { … }`; a value typed `I` (or `I[]`) dispatches to the implementor at runtime. Interfaces can also declare associated types and generic bounds. `baml describe interfaces`.
 - **Pattern matching.** `match (v) { … }` over values/types; arms are `pattern => expr` — literals, `let x: T` (bind + narrow), class destructure `T { f: let y }`, or-patterns `A | B`, guards `… if cond`, `_`; must be exhaustive. Also `v is T` → bool (narrows) and `if let x: T = v { … } else { … }`. `baml describe patterns`.
 - **Concurrency = green threads.** `spawn { … }` returns a `Future`; `await` collects it. Combine many with `baml.future.all` / `all_complete` / `race` / `any` (JS `Promise.*`). Configure a spawn with a `with` clause: `spawn with baml.spawn.options(group = g, cancel = tok, detach = true) { … }` — `baml.spawn.TaskGroup.new(n)` caps concurrency (excess spawns queue FIFO), a `baml.spawn.CancelToken` cancels cooperatively. `baml describe spawn` / `baml describe baml.future`.
 - **Resource safety — `defer`, `cleanup`, `catch (e, ctx)`.** `defer { … }` runs a block at scope exit, LIFO, on *every* path (return / throw / fall-through) — like Go. A class method named `function cleanup(self) -> void` is a **finalizer**: it runs at most once per instance whether you call it, `defer` it, or the GC reclaims it. `catch (e, ctx)` binds an **`ErrorContext`** alongside the error — an error thrown while handling another chains onto it, so `ctx.root_cause()` / `ctx.cause` walk back to the original failure and `ctx.to_string()` renders the whole chain (Python `__context__`-style). `while let PATTERN = expr { … }` loops until the pattern fails (e.g. draining a `T?`-returning `.pop()`).
 - **Call BAML from Python / TS.** Declare a `[generator.<name>]` in `baml.toml`, run `baml generate`, then import the typed `baml_sdk`. Install + usage: `baml describe python` / `baml describe typescript` / `baml describe baml_sdk`.
 - **Safe access over indexing.** Subscript panics on a missing index/key; use `.at(i)`/`.get(k)` (→ `T?`), reach through with `?.`, default with `??` (parenthesize: `(m.get(k) ?? 0) + 1`).
 - **Stdlib methods are snake_case, called on a value.** Some return new, some mutate in place, a few do both (`sort_by_key` sorts the receiver *and* returns it) — to read the docs, `baml describe <word/type/identifier/keyword/etc>`.
-- **Class fields `name: type,`; construct `Type { field: val }`.** Methods take a bare `self`; factories are free functions. **Fields are mutable** (like TS): `obj.field = v` and `obj.field += n` work, and a `self` method can mutate in place — a side-effect method returns `void`. **Classes are reference types**: `find`/`at(i)`/subscript return a *live alias*, not a copy, so mutating the result mutates that element inside the array (`xs.find(p)?.n += 1` updates `xs`), and a class passed to a function can be mutated by the callee. **Avoid struct-update spread for now** — reconstruct or mutate instead. `User { ...u, tier: Tier.Free }` compiles and runs, but `baml fmt` **rejects** it (`found SPREAD_ELEMENT`), so a file using it can't be formatted; prefer the explicit form until that lands. **Empty classes are legal** (`class Marker {}`) — handy as union variants. **Enums are plain variants — no methods, no associated data** (`E.A.foo()` won't compile); put behavior in free functions that `match`. `enum E { A, B }`, access `E.A`.
-- **Blocks are expressions** — last expression is the value (no `;`); `return x;` for early exit. A side-effect-only function's return type is `-> null` (canonical — `baml describe void`; `-> void` also works); its block's unit *value* is just bare `null` (writing `-> null` in *value* position is a parse error). `for (let x in xs)` iterates VALUES; `while (cond) { … }` loops. Closures `(x) -> { ... }` infer param/return from context (annotate `(x: T) -> R` only when ambiguous; the `->` is required). `.map`/`.filter` return arrays directly (no `.collect()`). Empty map needs a type: `let m: map<string, int> = {};`.
+- **Class fields `name: type,`; construct `Type { field: val }`.** Methods take a bare `self`; factories are free functions. **Fields are mutable** (like TS): `obj.field = v` and `obj.field += n` work, and a `self` method can mutate in place — a side-effect method returns `void`. **Classes are reference types**: `find`/`at(i)`/subscript return a *live alias*, not a copy, so mutating the result mutates that element inside the array (`xs.find(p)?.n += 1` updates `xs`), and a class passed to a function can be mutated by the callee. Struct-update spread is supported: `User { ...u, tier: Tier.Free }`. **Empty classes are legal** (`class Marker {}`) — handy as union variants. **Enums are plain variants — no methods, no associated data** (`E.A.foo()` won't compile); put behavior in free functions that `match`. `enum E { A, B }`, access `E.A`.
+- **Blocks are expressions** — last expression is the value (no `;`); `return x;` for early exit. A side-effect-only function returns `void`; its block's unit value is `null`. `for (let x in xs)` iterates VALUES; `while (cond) { … }` loops. Closures `(x) -> { ... }` infer param/return from context (annotate `(x: T) -> R` only when ambiguous; the `->` is required). `.map`/`.filter` return arrays directly (no `.collect()`). Empty map needs a type: `let m: map<string, int> = {};`.
 - **No ternary — `if/else` is the expression.** There's no `cond ? a : b`; `if (cond) { a } else { b }` *is* an expression that returns a value, so assign it directly: `let label = if (x > 3) { "big" } else { "small" };`. Each branch is a block whose last expression is its value (no `return`). Chain with `else if`, and pair with `if let PATTERN = expr { … } else { … }` for bind-and-narrow.
+- **Conditions use truthiness.** `if`, `while`, match guards, `&&`, `||`, and `!` accept any value. Falsy values are `false`, `null`, numeric zero, empty strings, empty arrays/maps, and empty bytes; everything else is truthy. `&&` and `||` still return `bool`, not an operand value. A truthy optional narrows in the taken branch.
 - **Arrays have a JS-like method set** — `map`/`filter`/`filter_map`/`reduce`/`find`/`some`/`every`/`flat_map`/`slice`/`concat`/`join`/`includes`/length(), plus in-place `push`/`pop`/`shift`/`unshift`/`sort_by`/`sort_by_key`. Most take closures that can `throws`. `baml describe Array` gives more info.
 - Local let bindings are reassignable (x = x + 1) — no mut keyword (it's TS let, not Rust); there's no const either.
 - **Args: defaults with `=`, keyword calls with `=` (never `:`).** Declare a default in the signature: `function f(a: int, b: int = 10)`; call `f(1)` or `f(1, b = 2)`. A **defaulted param must be passed by name** — `f(1, 2)` is an error (`defaulted parameter 'b' must be passed by name`). Any param (even required) may be passed by name (`f(a = 1, b = 2)`), and you can skip a middle default to set a later one (`f(1, c = 9)`). Keyword syntax is `name = value`; `name: value` won't parse (`:` is for types/fields). **`T?` does NOT make an argument optional** — unlike TS `b?: T`, a `b: T?` param is still *required* (you must pass `null`, else `expected N argument(s), got …`); add `= null` to make it omittable. Built-ins follow this: `baml.http.fetch(url, timeout = baml.time.Duration.from_seconds(10))`.
 - **Where it diverges from TS (the silent traps):** arithmetic is *type-driven*, not TS-style. `int / int` is **truncating integer division** (`285 / 100 == 2`, NOT `2.85`) and `%` is the remainder (`285 % 100 == 85`); this compiles fine and just gives a quietly-wrong number, so it's the highest-value gotcha. Mix in a float to get float division (`285 / 100.0 == 2.85`, `285.0 / 100 == 2.85`); any mixed `int`/`float` op promotes to `float` (`5 + 2.0 == 7.0`). There is **no `.to_float()`** — convert an int with `n * 1.0` (or divide by a float). An `int` result does **not** auto-coerce to `float` on assignment (`let x: float = 285 / 100` is a compile error). `+` is **numeric-only**: string concat needs both sides already `string` (`"n=" + 5` won't compile — use `${...}` interpolation). Comparisons (`==`, `<`, …, structural `==`) and `&&`/`||`/`!` are TS-like.
-- **Tests:** lone `test "name" { ... }` (no wrapper); `testset` only GROUPS. Asserts (only 5): `assert.equal`/`approx_equal`/`is_true`/`not_null`/`contains`. `assert.equal` compares **structurally** (deep, across classes/arrays/maps) — and so does plain `==`, which is the bool form. `assert.equal` is *exact* on floats; use `assert.approx_equal(actual, expected, eps)` for computed ones. Last assert: no trailing `;`. Run one: `baml test -i "Testset::TestName"` (`-x` to exclude) — the selector keys on `testset::test`, so a top-level `test` with no testset is `-i "::TestName"`; `baml test --list` prints valid selectors.
-- **Namespaces =** `ns_*` **directories, no imports.** A folder `ns_<name>/` under `baml_src/` puts its files in namespace `<name>`; files in `baml_src/` itself are the `root` namespace (nesting stacks — `ns_a/ns_b/` → `root.a.b`; non`ns_` folders don't namespace). Same namespace = same scope: files share definitions with no import. To reach *another* namespace, use the **absolute** path `root.<ns>.<name>` `root.llm.Response`) — a bare `Response` from outside is rejected `did you mean root.Response?`). Run a target by its namespace-relative path `baml run agent.main`), but `baml run -e` evaluates in the root scope, so reach in with the absolute form: `baml run -e 'root.agent.main()'`. It's more idiomatic to keep namespaces as flat as possible, like Go packages.
+- **Tests:** lone `test "name" { ... }` (no wrapper); `testset` only GROUPS. Asserts (only 6): `assert.equal`/`approx_equal`/`is_true`/`is_type`/`not_null`/`contains`. `assert.equal` compares **structurally** (deep, across classes/arrays/maps) — and so does plain `==`, which is the bool form. `assert.equal` is *exact* on floats; use `assert.approx_equal(actual, expected, eps)` for computed ones. Last assert: no trailing `;`. Canonical IDs are `root::TestName` for a top-level test and `root::Testset::TestName` inside a testset. Run one with `baml test -i "root::TestName"` (`-x` to exclude); `baml test --list` prints valid selectors.
+- **Namespaces =** `ns_*` **directories, no imports.** A folder `ns_<name>/` under `baml_src/` puts its files in namespace `<name>`; files in `baml_src/` itself are the `root` namespace (nesting stacks — `ns_a/ns_b/` → `root.a.b`; non-`ns_` folders don't namespace). Same namespace = same scope: files share definitions with no import. To reach *another* namespace, use the **absolute** path `root.<ns>.<name>` (for example, `root.llm.Response`). Run a target by its namespace-relative path (`baml run agent.main`), but `baml run -e` evaluates in the root scope, so reach in with the absolute form: `baml run -e 'root.agent.main()'`. Keep namespaces as flat as practical, like Go packages.
 - Run `baml fmt` when you're done with a feature.
-- BAML functions/methods/types etc are accessible from other languages (python, typescript). Run `baml describe baml_sdk` for setup instructions. You might want to see if the current dir is near a python or TS project to setup the wiring for the user. The baml.toml toolchain version must match the installed python/ts baml package. Keep AI-related things and workflow logic in BAML as much as possible.
-- BAML has `log.info(..)` or `log.debug(..)`
+- BAML functions, methods, and types are accessible from other languages. Run `baml describe baml_sdk` for setup instructions. The selected toolchain must match the installed language bridge; use `baml toolchain use <channel-or-version>` to select it. Keep AI-related things and workflow logic in BAML as much as possible.
+- BAML has `log.info(..)`, `log.debug(..)`, `log.warn(..)`, and `log.error(..)`.
 - `baml pack` can create a binary.
-- Use backtics instead of \#" "# like baml used to have.
+- Use backticks instead of the removed `#" "#` string syntax.
 
 
-For anything not shown (signatures, niche stdlib, advanced features), run `**baml describe <name>`** — the CLI is the docs; never guess the stdlib.
+For anything not shown (signatures, niche stdlib, advanced features), run **`baml describe <name>`** — the CLI is the docs; never guess the stdlib.
 
 ## Example 1 — LLM DSL + glue (schema, attributes, client, backtick prompt, post-processing)
 
@@ -82,11 +83,10 @@ class Invoice {
     note: string?,
 }
 
-// Clients are ordinary VALUES implementing `ai.Client` (no `client<llm> { }` config block).
-// Prefer `api_key_env = "NAME"` (resolved lazily) over `api_key = env.NAME` — the latter is
-// read at engine init, so an unset var fails the WHOLE project, even offline tests.
-client Fast = openai.OpenAiClient.new(model = "gpt-4o-mini", api_key_env = "OPENAI_API_KEY");
-// Compose reliability by WRAPPING a client. `Retry`/`RoundRobin` have `.new(...)`;
+// Clients are ordinary values implementing `ai.Client` (no `client<llm> { }` block).
+// `env.OPENAI_API_KEY` is a late-bound reference resolved when a request runs.
+client Fast = openai.ResponsesClient.new(model = "gpt-4o-mini", api_key = env.OPENAI_API_KEY);
+// Compose reliability by wrapping a client. `Retry`/`RoundRobin` have `.new(...)`;
 // `Fallback` has no `.new`, so construct it as a class literal.
 client Reliable = ai.clients.Retry.new(inner = Fast, max_attempts = 3);
 client Safe = ai.clients.Fallback { members: [Reliable, anthropic.AnthropicClient.new(model = "claude-sonnet-5")] };
@@ -96,30 +96,32 @@ function Extract(raw: string) -> Invoice {
     prompt: `Extract the invoice. ${ctx.output_format}\n${raw}`
 }
 
-// Structured output is just a typed value — hand it to ordinary code.
+// Structured output is just a typed value - hand it to ordinary code.
 // Closure params/return infer from context; only the -> is required.
-// `min_amount` has a default — omit it, or pass it BY NAME (`min_amount = …`).
+// `min_amount` has a default - omit it, or pass it by name (`min_amount = 10.0`).
 function high_total(inv: Invoice, min_amount: float = 0.0) -> float {
     inv.items
         .filter((i) -> { i.priority == Priority.High && i.amount >= min_amount })
         .reduce((a, i) -> { a + i.amount }, 0.0)
 }
 
-test "post-process a literal Invoice — no model call" {
+test "post-process a literal Invoice - no model call" {
     let inv = Invoice {
         vendor: "Acme", status: "final", note: null,
         items: [LineItem { name: "srv", amount: 900.0, priority: Priority.High },
                 LineItem { name: "mug", amount: 12.0, priority: Priority.Low }],
     };
     assert.equal(high_total(inv), 900.0);                        // default min_amount = 0.0
-    assert.equal(high_total(inv, min_amount = 1000.0), 0.0)      // keyword arg
+    assert.equal(high_total(inv, min_amount = 1000.0), 0.0);     // keyword arg
+    let parsed = Extract$parse(`{"seller":"Acme","status":"draft","items":[],"note":null}`);
+    assert.equal(parsed.vendor, "Acme")
 }
 ```
 
 ## Example 2 — the language (methods, interpolation, closures, maps, json, errors). Mutations work like Typescript
 
 ```baml
-// BAML is a real language — no LLM here.
+// BAML is a real language - no LLM here.
 enum Tier { Free, Pro }
 
 class User {
@@ -151,6 +153,8 @@ function roundtrip(u: User) -> User { baml.json.from_string<User>(baml.json.to_s
 // `catch` with a typed arm handles ONE specific error
 function safe_parse(s: string) -> int { baml.Int.parse(s) catch (e) { baml.errors.ParseError => -1 } }
 
+function truthy_label(s: string?) -> string { if (s) { "set" } else { "empty" } }
+
 test "lang" {
     let us = [make_user("ada", 90), make_user("bo", 30)];
     log.info(us);
@@ -160,20 +164,25 @@ test "lang" {
     kit.celebrate();            // mutate in place
     kit.tier = Tier.Free;       // direct field assignment
     assert.equal(kit.score, 105);
+    let upgraded = User { ...kit, tier: Tier.Pro };
+    assert.is_type<User>(upgraded);
+    assert.equal(upgraded.tier, Tier.Pro);
+    assert.equal(285 / 100, 2);
     assert.equal(roundtrip(make_user("zoe", 7)).name, "zoe");
     assert.equal(safe_parse("42"), 42);
-    assert.equal(safe_parse("x"), -1)
+    assert.equal(safe_parse("x"), -1);
+    assert.equal(truthy_label("value"), "set");
+    assert.equal(truthy_label(""), "empty");
+    assert.equal(truthy_label(null), "empty")
 }
 ```
 
 ## Example 3 — interfaces (shared behavior, default method, dynamic dispatch)
 
 ```baml
-// Interface methods MUST declare an explicit throws clause: `throws never` if the
-// method can't fail, `throws SomeError` if it can. Implementors don't repeat it.
 interface Animal {
-    function sound(self) -> string throws never
-    function describe(self) -> string throws never { `${self.sound()}!` } // default method
+    function sound(self) -> string
+    function describe(self) -> string { `${self.sound()}!` } // default method
 }
 
 class Dog {
@@ -252,7 +261,7 @@ test "patterns" {
 class DbConn {
     log: string[],
     // `cleanup` is a magic method (recognized by name): runs at most once per
-    // instance — whether called explicitly, deferred, or reclaimed by the GC.
+    // instance - whether called explicitly, deferred, or reclaimed by the GC.
     function cleanup(self) -> void { self.log.push("closed") }
 }
 
@@ -275,7 +284,7 @@ function root_cause_demo() -> string {
     fail_a() catch (e, ctx) {
         _ => fail_b() catch (e2, ctx2) {
             _ => match (ctx2.root_cause().error) {      // ctx.to_string() renders the full chain
-                let io: baml.errors.Io => io.message,   // "disk full" — the original cause
+                let io: baml.errors.Io => io.message,   // "disk full" - the original cause
                 _ => "unknown",
             }
         }
@@ -333,9 +342,10 @@ Also just start writing some code. This is plenty of information already. Preten
 Use '//#' to add comments that will show up in the BAML visualizer. Useful for annotating branches, general flow of the program. When you write baml code you should add some of these in general flow of the program. No need to annotate _everything_.
 e.g.
 ```baml
-function hello() -> void {
+function hello() -> string {
     //# Start loading data
-    ...
-    //# Iterate over things...
-    ...
+    let greeting = "hello";
+    //# Return the result
+    greeting
 }
+```

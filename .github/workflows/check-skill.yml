@@ -1,0 +1,34 @@
+name: Check BAML skill
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 8 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Download latest BAML nightly
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="$(gh api 'repos/BoundaryML/baml/releases?per_page=100' --jq 'map(select(.tag_name | startswith("baml-language-") and contains("-nightly."))) | max_by(.published_at).tag_name')"
+          asset="${tag}-x86_64-unknown-linux-gnu.tar.gz"
+          mkdir "$RUNNER_TEMP/baml-nightly"
+          gh release download "$tag" --repo BoundaryML/baml --pattern "$asset" --pattern "$asset.sha256" --dir "$RUNNER_TEMP/baml-nightly"
+          cd "$RUNNER_TEMP/baml-nightly"
+          sha256sum -c "$asset.sha256"
+          tar -xzf "$asset"
+          echo "BAML_BIN=$RUNNER_TEMP/baml-nightly/bin/baml-cli" >> "$GITHUB_ENV"
+
+      - name: Check skill examples
+        run: scripts/check-skill.sh
