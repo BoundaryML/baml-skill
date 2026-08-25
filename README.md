@@ -1,53 +1,77 @@
-# baml-skill
+# baml-skill — Claude Code plugin for BAML
 
-Agent instructions for writing idiomatic BAML. The skill is deliberately describe-first: it documents the high-value language and LLM workflow rules, then treats `baml describe` as the reference for exact APIs.
+Claude Code skills that teach the agent to write idiomatic BAML. They auto-trigger when Claude opens a `.baml` file or is asked "how do I install / use BAML?". Two variants of the same describe-first skill ship: `core` (discover each name as needed) and `overview` (lead with `baml describe baml` for the whole stdlib).
 
-Every BAML example in the skill is compiled and tested against the latest published nightly release in CI.
+The premise: **BAML is two things in one file** — a statically-typed, expression-oriented *language* (basically TypeScript with `snake_case` methods and `name: type,` class fields: types, classes, generics, closures, optional chaining, control flow, `throws`/`catch`/`catch_all`, a stdlib) and a small declarative *DSL* for LLM calls (`client<llm>`, `function … { client:  prompt: }`, `generator`, `test`) that desugars into that language.
+
+The skill is deliberately minimal and **describe-first**: it names the handful of traps that trip up agents, shows one minimum-viable LLM function + test, and otherwise points the agent at `baml describe` for every stdlib name, type, and signature rather than padding the prompt with examples it would guess wrong. The CLI is the reference. This is the arena-winning `micro-describe` variant.
+
+Every code example in the skill is verified to compile against the `baml_language` CLI.
+
+Without it, agents invent stdlib methods (`baml.json.decode_str`, `s.contains()`), forget `{{ ctx.output_format }}` on prompts, and probe for things that don't exist. With it, they reach for `baml.json.from_string<T>`, snake_case names, and `client: "openai/gpt-4o-mini"` on the first try.
 
 ## Install
 
-From a BAML project, run:
-
-```bash
-baml agent install
 ```
-
-This installs `baml-core` for supported agents and archives superseded versions under `baml-old_skills`.
-
-Claude Code users can also install the plugin directly:
-
-```text
 /plugin marketplace add BoundaryML/baml-skill
 /plugin install baml@boundaryml-baml
 ```
 
-## Contents
+The skill auto-loads in any Claude Code session.
 
-```text
+## What it covers
+
+Two describe-first skills that share the same content and differ only in how they enter it:
+
+- **`core`** — minimal and describe-first, the arena-winning `micro-describe` variant. Discover each name as you need it (`baml describe <name>`).
+- **`overview`** — same skill, full-picture-first. Leads with `baml describe baml`, which dumps the ENTIRE stdlib (every namespace, type, and function) in one listing, then drills into any name. Use it when you'd rather see the whole map before writing.
+
+Both cover:
+
+- Install + the `baml describe / run / test / fmt` agent loop — `baml describe <name>` is the reference for any module/type/method/signature
+- **The five fatal traps** the language model otherwise gets wrong: `name: type,` fields (`baml fmt` writes the colon + comma), trailing-expression blocks + `-> null` unit, `for (let x in xs)` over values, no implicit string coercion / panicking index / `(x: T) -> R { ... }` closures (not `=>`), type-only non-exhaustive `catch`
+- One **minimum-viable LLM function + test** — `client:`/`prompt:` blocks with `{{ ctx.output_format }}`, the return type as schema, the `name$parse` companion, `testset`/`test` with `assert.*`
+- The throughline: **anything not shown → `baml describe <name>`; check it with `baml run -e`**
+
+## Layout
+
+```
 baml-skill/
-|-- .claude-plugin/marketplace.json
-|-- .github/workflows/check-skill.yml
-|-- plugins/baml/
-|   |-- .claude-plugin/plugin.json
-|   `-- skills/core/SKILL.md
-`-- scripts/check-skill.sh
+├── .claude-plugin/
+│   └── marketplace.json              # marketplace catalog (one plugin: baml at ./plugins/baml)
+├── README.md                         # this file
+└── plugins/baml/
+    ├── .claude-plugin/plugin.json    # plugin manifest
+    └── skills/
+        ├── core/SKILL.md             # describe-first, discover names as needed
+        └── overview/SKILL.md         # same skill, full-picture-first (`baml describe baml`)
 ```
-
-The core skill covers BAML syntax, types, clients, LLM functions, tests, interfaces, patterns, errors, concurrency, resource cleanup, namespaces, and the CLI workflow.
-
-## Validate
-
-Run all BAML snippets with a selected CLI:
-
-```bash
-BAML_BIN=baml scripts/check-skill.sh
-```
-
-CI downloads the newest published BAML nightly from GitHub, verifies its checksum, and runs the same check daily and on every change.
 
 ## Editing
 
-Edit `plugins/baml/skills/core/SKILL.md`, run `scripts/check-skill.sh`, and bump the plugin version for a release.
+```bash
+# Symlink the work-in-progress copy into your global skills dir for fast iteration.
+ln -sf "$PWD/plugins/baml/skills/core" ~/.claude/skills/baml-core-dev
+ln -sf "$PWD/plugins/baml/skills/overview" ~/.claude/skills/baml-overview-dev
+# Edit plugins/baml/skills/*/SKILL.md, then restart your session; skills auto-reload.
+```
+
+When happy, bump `version` in `plugins/baml/.claude-plugin/plugin.json` and commit.
+
+## Versioning
+
+- **0.1.x** — content corrections, no structural changes.
+- **0.2.x** — added or removed sub-skills, restructured.
+- **0.3.x** — aligned to the canonical BAML agent guide.
+- **0.4.x** — collapsed the five skills into one lean, example-dense skill.
+- **0.5.x** — restructured around the language/DSL split; expanded language coverage; every example verified against the CLI.
+- **0.6.x** — aligned to the baml_language rewrite: `name type` fields, `-> null` unit, generics, optional chaining, `catch_all`, C-style for, richer stdlib; reconciled against a team syntax reference + the compiler.
+- **0.7.x** — split into four skills (core, bridges, serving, testing), each verified against the shipped CLI.
+- **0.8.x** — collapsed back to one minimal, describe-first `core` skill; the arena-winning `micro-describe` variant.
+- **0.9.x** — added the `overview` skill: the same content, full-picture-first via `baml describe baml`; corrected the closures/`.collect()` trap against baml-cli 0.12.1 (current).
+- **0.10.x** — migrated to the canary syntax: backtick prompt strings with `${...}` interpolation (no more `#"…"#`), `.to_string()`, and an interface example; reworked the `catch`/`catch_all` guidance (specific vs. exhaustive). Every example verified against the canary `baml-cli`.
+- **0.11.x** — covered the newest language features: `defer` + `cleanup` finalizers, `catch (e, ctx)` ErrorContext cause-chains, spawn options (`spawn … with baml.spawn.options(...)`, `TaskGroup`, `CancelToken`), the `baml.future.all/all_complete/race/any` combinators, and `while let`. Added Example 5; every example verified against the canary CLI.
+- **1.0.0** — stable.
 
 ## License
 

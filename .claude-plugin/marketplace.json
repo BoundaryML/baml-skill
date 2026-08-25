@@ -4,12 +4,12 @@
     "name": "BoundaryML",
     "url": "https://github.com/BoundaryML"
   },
-  "description": "Official BAML plugin for Claude Code with current, CLI-verified instructions for writing idiomatic BAML.",
+  "description": "Official BAML plugin for Claude Code — lean, example-dense skills that teach Claude to write idiomatic BAML.",
   "plugins": [
     {
       "name": "baml",
       "source": "./plugins/baml",
-      "description": "A describe-first skill covering BAML's typed, expression-oriented language and first-class LLM functions. It documents high-value rules and defers exact stdlib APIs to `baml describe` rather than guessing."
+      "description": "Two describe-first skills sharing the same content — the typed, expression-oriented language plus the LLM DSL that desugars into it. `core` discovers each name as needed; `overview` leads with `baml describe baml` to dump the whole stdlib first. Both name the few fatal traps and defer to `baml describe` for everything else rather than guessing. Auto-triggers when Claude opens a .baml file or is asked how to install / use BAML."
     }
   ]
 }
