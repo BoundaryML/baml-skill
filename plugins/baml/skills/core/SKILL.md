@@ -63,6 +63,7 @@ Mostly it behaves like JavaScript/TypeScript, with very similar syntax — but B
 
 
 For anything not shown (signatures, niche stdlib, advanced features), run **`baml describe <name>`** — the CLI is the docs; never guess the stdlib.
+Use `baml describe baml` when you want the full stdlib map first, then drill into specific names.
 
 ## Example 1 — LLM DSL + glue (schema, attributes, client, backtick prompt, post-processing)
 
